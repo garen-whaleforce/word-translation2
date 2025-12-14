@@ -466,11 +466,12 @@ async def generate_report(
         logger.info(f"使用模板: {template_path}")
 
         # Step 4: 填寫 Word 模板
-        # 產生輸出檔案名稱
-        report_no = schema.basic_info.cb_report_no or "Unknown"
-        safe_report_no = "".join(c if c.isalnum() or c in "-_" else "_" for c in report_no)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_filename = f"CNS_Report_{safe_report_no}_{timestamp}.docx"
+        # 產生輸出檔案名稱 - 使用上傳的 PDF 檔名
+        # 例如：上傳 DYS830.pdf -> AST-B-DYS830.docx
+        pdf_basename = os.path.splitext(file.filename)[0]  # 移除 .pdf 副檔名
+        # 清理檔名，只保留安全字元
+        safe_basename = "".join(c if c.isalnum() or c in "-_" else "_" for c in pdf_basename)
+        output_filename = f"AST-B-{safe_basename}.docx"
         output_path = os.path.join(settings.temp_dir, output_filename)
 
         logger.info(f"填寫 Word 模板，輸出: {output_path}")
