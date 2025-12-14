@@ -61,8 +61,11 @@ class BasicInfo(BaseModel):
     # 報告資訊
     cb_report_no: str = Field(default="", description="CB 報告編號")
     cns_report_no: Optional[str] = Field(default=None, description="CNS 報告編號（由我方填寫）")
+    bsmi_designated_report_no: Optional[str] = Field(default=None, description="BSMI 指定報告編號，如 SL2INT0157250509")
     standard: str = Field(default="", description="適用標準，例如 IEC 62368-1:2018")
     standard_version: Optional[str] = Field(default=None, description="標準版本")
+    cns_standard: Optional[str] = Field(default=None, description="CNS 標準，如 CNS 15598-1")
+    cns_standard_version: Optional[str] = Field(default=None, description="CNS 標準版本，如 109年版")
     national_differences: Optional[str] = Field(default=None, description="國家差異")
     test_lab: Optional[str] = Field(default=None, description="測試實驗室名稱")
     test_lab_country: Optional[str] = Field(default=None, description="測試實驗室國家")
@@ -104,6 +107,14 @@ class BasicInfo(BaseModel):
     # 設備資訊
     equipment_mass: Optional[str] = Field(default=None, description="設備質量")
     protection_rating: Optional[str] = Field(default=None, description="保護裝置額定電流")
+
+    # 試驗相關資訊
+    test_type: Optional[str] = Field(default=None, description="試驗方式：型式試驗/監督試驗")
+    overall_result: Optional[str] = Field(default=None, description="整體試驗結果：符合/不符合")
+    sample_conforms: Optional[str] = Field(default=None, description="符合項目說明")
+    sample_not_conforms: Optional[str] = Field(default=None, description="不符合項目說明")
+    not_applicable_items: Optional[str] = Field(default=None, description="不適用項目說明")
+    special_installation: Optional[str] = Field(default=None, description="特殊安裝要求")
 
 
 class TestItemParticulars(BaseModel):
@@ -150,6 +161,16 @@ class TestItemParticulars(BaseModel):
 
     # 備註
     additional_info: Optional[str] = Field(default=None, description="其他特性說明")
+
+
+class RevisionRecord(BaseModel):
+    """
+    報告修訂記錄
+    """
+    item: str = Field(default="01", description="項次")
+    date: Optional[str] = Field(default=None, description="發行日期")
+    report_no: Optional[str] = Field(default=None, description="報告編號")
+    description: str = Field(default="主報告", description="修訂內容")
 
 
 class SeriesModel(BaseModel):
@@ -339,6 +360,12 @@ class ReportSchema(BaseModel):
     series_models: List[SeriesModel] = Field(
         default_factory=list,
         description="系列型號清單"
+    )
+
+    # 修訂記錄
+    revision_records: List[RevisionRecord] = Field(
+        default_factory=list,
+        description="報告修訂記錄清單"
     )
 
     # 條文判定清單

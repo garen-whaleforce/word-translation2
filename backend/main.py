@@ -28,7 +28,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import settings
 from utils.logger import get_logger, setup_logging
-from services.adobe_extract import extract_pdf_to_json, create_mock_extract_result, AdobeExtractError
+from services.adobe_extract import extract_pdf_to_json as adobe_extract_pdf, create_mock_extract_result, AdobeExtractError
+from services.pymupdf_extract import extract_pdf_to_json as pymupdf_extract_pdf, PyMuPDFExtractError
 from services.azure_llm import extract_report_schema_from_adobe_json, create_mock_schema
 from services.word_filler import fill_cns_template
 
@@ -146,6 +147,18 @@ UPLOAD_PAGE_HTML = """
         input[type="file"]:hover {
             border-color: #007bff;
         }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.1);
+        }
         button {
             width: 100%;
             padding: 14px;
@@ -234,6 +247,21 @@ UPLOAD_PAGE_HTML = """
                 <input type="file" id="pdfFile" name="file" accept=".pdf" required>
             </div>
 
+            <div class="form-group">
+                <label for="reportAuthor">報告撰寫人（選填）</label>
+                <input type="text" id="reportAuthor" name="report_author" placeholder="請輸入報告撰寫人姓名">
+            </div>
+
+            <div class="form-group">
+                <label for="reportSigner">報告簽署人（選填）</label>
+                <input type="text" id="reportSigner" name="report_signer" placeholder="請輸入報告簽署人姓名">
+            </div>
+
+            <div class="form-group">
+                <label for="seriesModel">系列型號（選填）</label>
+                <input type="text" id="seriesModel" name="series_model" placeholder="多個型號請用逗號分隔，如：MC-601, MC-602">
+            </div>
+
             <div class="form-group checkbox-group">
                 <label>
                     <input type="checkbox" id="useMock" name="use_mock">
@@ -281,6 +309,15 @@ UPLOAD_PAGE_HTML = """
                 const formData = new FormData();
                 formData.append('file', fileInput.files[0]);
                 formData.append('use_mock', useMock ? 'true' : 'false');
+
+                // 新增三個選填欄位
+                const reportAuthor = document.getElementById('reportAuthor').value.trim();
+                const reportSigner = document.getElementById('reportSigner').value.trim();
+                const seriesModel = document.getElementById('seriesModel').value.trim();
+
+                if (reportAuthor) formData.append('report_author', reportAuthor);
+                if (reportSigner) formData.append('report_signer', reportSigner);
+                if (seriesModel) formData.append('series_model', seriesModel);
 
                 const response = await fetch('/generate-report', {
                     method: 'POST',
@@ -349,6 +386,7 @@ async def health_check():
     return {
         "status": "healthy",
         "app_name": settings.app_name,
+        "pdf_extractor": settings.pdf_extractor,
         "timestamp": datetime.now().isoformat()
     }
 
@@ -356,7 +394,10 @@ async def health_check():
 @app.post("/generate-report")
 async def generate_report(
     file: UploadFile = File(..., description="CB Report PDF 檔案"),
-    use_mock: str = Form(default="false", description="是否使用模擬資料")
+    use_mock: str = Form(default="false", description="是否使用模擬資料"),
+    report_author: str = Form(default="", description="報告撰寫人"),
+    report_signer: str = Form(default="", description="報告簽署人"),
+    series_model: str = Form(default="", description="系列型號（逗號分隔）")
 ):
     """
     主要 API：將 CB PDF 轉換為 CNS Word 報告
@@ -379,6 +420,9 @@ async def generate_report(
     logger.info("收到報告轉換請求")
     logger.info(f"檔案名稱: {file.filename}")
     logger.info(f"使用模擬: {use_mock}")
+    logger.info(f"報告撰寫人: {report_author or '(未填)'}")
+    logger.info(f"報告簽署人: {report_signer or '(未填)'}")
+    logger.info(f"系列型號: {series_model or '(未填)'}")
     logger.info("=" * 50)
 
     # 驗證檔案類型
@@ -411,20 +455,36 @@ async def generate_report(
     use_mock_data = use_mock.lower() == "true"
 
     try:
-        # Step 1: Adobe PDF Extract
+        # Step 1: PDF Extract（根據設定選擇 PyMuPDF 或 Adobe）
         if use_mock_data:
-            logger.info("使用模擬 Adobe Extract 結果")
-            adobe_json = create_mock_extract_result()
+            logger.info("使用模擬 Extract 結果")
+            extract_json = create_mock_extract_result()
         else:
-            logger.info("呼叫 Adobe PDF Extract API...")
-            try:
-                adobe_json = await extract_pdf_to_json(pdf_bytes)
-            except AdobeExtractError as e:
-                logger.error(f"Adobe Extract 失敗: {e}")
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"PDF 解析失敗: {str(e)}"
-                )
+            extractor = settings.pdf_extractor.lower()
+            logger.info(f"使用 PDF 擷取引擎: {extractor}")
+
+            if extractor == "pymupdf":
+                # 使用免費的 PyMuPDF
+                logger.info("呼叫 PyMuPDF 擷取 PDF...")
+                try:
+                    extract_json = await pymupdf_extract_pdf(pdf_bytes)
+                except PyMuPDFExtractError as e:
+                    logger.error(f"PyMuPDF Extract 失敗: {e}")
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"PDF 解析失敗: {str(e)}"
+                    )
+            else:
+                # 使用 Adobe PDF Extract API
+                logger.info("呼叫 Adobe PDF Extract API...")
+                try:
+                    extract_json = await adobe_extract_pdf(pdf_bytes)
+                except AdobeExtractError as e:
+                    logger.error(f"Adobe Extract 失敗: {e}")
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"PDF 解析失敗: {str(e)}"
+                    )
 
         # Step 2: Azure OpenAI Schema Extraction
         if use_mock_data:
@@ -433,7 +493,7 @@ async def generate_report(
         else:
             logger.info("呼叫 Azure OpenAI 萃取 Schema...")
             try:
-                schema = await extract_report_schema_from_adobe_json(adobe_json)
+                schema = await extract_report_schema_from_adobe_json(extract_json)
             except Exception as e:
                 logger.error(f"Schema 萃取失敗: {e}")
                 raise HTTPException(
@@ -476,8 +536,15 @@ async def generate_report(
 
         logger.info(f"填寫 Word 模板，輸出: {output_path}")
 
+        # 準備前端傳入的額外欄位
+        user_inputs = {
+            "report_author": report_author.strip() if report_author else "",
+            "report_signer": report_signer.strip() if report_signer else "",
+            "series_model": series_model.strip() if series_model else ""
+        }
+
         try:
-            fill_cns_template(schema, template_path, output_path)
+            fill_cns_template(schema, template_path, output_path, user_inputs=user_inputs)
         except FileNotFoundError as e:
             raise HTTPException(status_code=500, detail=str(e))
         except Exception as e:

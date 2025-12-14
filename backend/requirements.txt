@@ -23,6 +23,10 @@ openai==1.12.0
 # Word Document Processing
 python-docx==1.1.0
 
+# PDF Extraction
+# PyMuPDF 作為 Adobe PDF Extract API 的免費替代方案
+pymupdf==1.26.0
+
 # Adobe PDF Services SDK
 # 注意：Adobe 官方 Python SDK 名稱為 pdfservices-sdk
 # 若無法安裝，可改用 REST API 方式（本專案已實作 REST 方式）

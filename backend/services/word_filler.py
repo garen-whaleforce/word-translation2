@@ -30,6 +30,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from schemas.report_schema import ReportSchema
+from config import settings
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -88,17 +89,22 @@ def build_placeholder_mapping(schema: ReportSchema) -> Dict[str, str]:
 
     mapping["product_name_en"] = bi.product_name_en or ""
     mapping["model_main"] = bi.model_main or ""
+    mapping["main_model"] = bi.model_main or ""  # alias for model_main
     mapping["brand"] = bi.brand or ""
     mapping["trademark"] = bi.trademark or ""
 
     mapping["ratings_input"] = bi.ratings_input or ""
+    mapping["rated_input"] = bi.ratings_input or ""  # alias for ratings_input
     mapping["ratings_output"] = bi.ratings_output or ""
+    mapping["rated_output"] = bi.ratings_output or ""  # alias for ratings_output
     mapping["ratings_power"] = bi.ratings_power or ""
 
     mapping["issue_date"] = bi.issue_date or ""
     mapping["issue_date_short"] = bi.issue_date_short or ""
     mapping["receive_date"] = bi.receive_date or ""
+    mapping["sample_received_date"] = bi.receive_date or ""  # alias for receive_date
     mapping["test_date_from"] = bi.test_date_from or ""
+    mapping["test_date"] = bi.test_date_from or ""  # alias for test_date_from
     mapping["test_date_to"] = bi.test_date_to or ""
 
     # CB 報告資訊
@@ -108,14 +114,18 @@ def build_placeholder_mapping(schema: ReportSchema) -> Dict[str, str]:
 
     # 設備資訊
     mapping["equipment_mass"] = bi.equipment_mass or ""
+    mapping["eut_mass_kg"] = bi.equipment_mass or ""  # alias for equipment_mass
     mapping["protection_rating"] = bi.protection_rating or ""
+    mapping["protective_device_rated_current"] = bi.protection_rating or ""  # alias
 
     # ===================
     # Translations (繁中)
     # ===================
     trans = schema.translations
     mapping["applicant_zh"] = trans.applicant_zh or ""
+    mapping["applicant_name"] = trans.applicant_zh or ""  # alias for applicant_zh
     mapping["applicant_address_zh"] = trans.applicant_address_zh or ""
+    mapping["applicant_address"] = trans.applicant_address_zh or ""  # alias
     mapping["manufacturer_zh"] = trans.manufacturer_zh or ""
     mapping["manufacturer_address_zh"] = trans.manufacturer_address_zh or ""
     mapping["product_name_zh"] = trans.product_name_zh or ""
@@ -135,9 +145,12 @@ def build_placeholder_mapping(schema: ReportSchema) -> Dict[str, str]:
     mapping["ovc"] = tip.ovc or ""
     mapping["pollution_degree"] = tip.pollution_degree or ""
     mapping["ip_code"] = tip.ip_code or ""
+    mapping["ip_rating"] = tip.ip_code or ""  # alias for ip_code
     mapping["tma"] = tip.tma or ""
+    mapping["tma_c"] = tip.tma or ""  # alias for tma
     mapping["altitude_limit_m"] = str(tip.altitude_limit_m) if tip.altitude_limit_m else ""
     mapping["altitude"] = f"{tip.altitude_limit_m} m 或更低" if tip.altitude_limit_m else ""
+    mapping["equipment_altitude"] = str(tip.altitude_limit_m) if tip.altitude_limit_m else ""  # alias
     mapping["mains_supply"] = tip.mains_supply or ""
     mapping["rated_voltage"] = tip.rated_voltage or ""
     mapping["rated_frequency"] = tip.rated_frequency or ""
@@ -145,11 +158,13 @@ def build_placeholder_mapping(schema: ReportSchema) -> Dict[str, str]:
     mapping["protection_class"] = tip.protection_class or ""
     mapping["insulation_type"] = tip.insulation_type or ""
     mapping["mobility"] = tip.mobility or ""
+    mapping["equipment_mobility"] = tip.mobility or ""  # alias for mobility
 
     # Classification of use（多選，用逗號分隔）
     mapping["classification_of_use"] = ", ".join(tip.classification_of_use) if tip.classification_of_use else ""
     # Supply connection（多選）
     mapping["supply_connection"] = ", ".join(tip.supply_connection) if tip.supply_connection else ""
+    mapping["supply_connection_type"] = ", ".join(tip.supply_connection) if tip.supply_connection else ""  # alias
 
     # ===================
     # Series Models
@@ -178,6 +193,55 @@ def build_placeholder_mapping(schema: ReportSchema) -> Dict[str, str]:
         mapping[f"series_model_{i}_connector"] = ""
         mapping[f"series_model_{i}_diff"] = ""
         mapping[f"series_model_{i}_remarks"] = ""
+
+    # ===================
+    # New Fields (新增欄位)
+    # ===================
+    # BSMI 相關
+    mapping["bsmi_designated_report_no"] = bi.bsmi_designated_report_no or ""
+    mapping["cns_standard"] = bi.cns_standard or ""
+    mapping["cns_standard_version"] = bi.cns_standard_version or ""
+
+    # 試驗結果相關
+    mapping["test_type"] = bi.test_type or ""
+    mapping["overall_result"] = bi.overall_result or ""
+    mapping["sample_conforms"] = bi.sample_conforms or ""
+    mapping["sample_not_conforms"] = bi.sample_not_conforms or ""
+    mapping["not_applicable_items"] = bi.not_applicable_items or ""
+    mapping["special_installation"] = bi.special_installation or ""
+
+    # ===================
+    # Revision Records (修訂記錄)
+    # ===================
+    # 預設最多支援 5 筆修訂記錄
+    for i, rev in enumerate(schema.revision_records[:5], start=1):
+        mapping[f"rev{i}_item"] = rev.item or ""
+        mapping[f"rev{i}_date"] = rev.date or ""
+        mapping[f"rev{i}_report_no"] = rev.report_no or ""
+        mapping[f"rev{i}_desc"] = rev.description or ""
+
+    # 填充剩餘的修訂記錄為空字串
+    for i in range(len(schema.revision_records) + 1, 6):
+        mapping[f"rev{i}_item"] = ""
+        mapping[f"rev{i}_date"] = ""
+        mapping[f"rev{i}_report_no"] = ""
+        mapping[f"rev{i}_desc"] = ""
+
+    # ===================
+    # Lab Fixed Info (實驗室固定資訊)
+    # ===================
+    mapping["lab_name"] = settings.lab_name
+    mapping["lab_address"] = settings.lab_address
+    mapping["lab_accreditation_no"] = settings.lab_accreditation_no
+    mapping["lab_altitude"] = settings.lab_altitude
+
+    # 報告預設值（如果 Schema 中沒有值則使用預設）
+    if not mapping.get("test_type"):
+        mapping["test_type"] = settings.default_test_type
+    if not mapping.get("cns_standard"):
+        mapping["cns_standard"] = settings.default_cns_standard
+    if not mapping.get("cns_standard_version"):
+        mapping["cns_standard_version"] = settings.default_cns_standard_version
 
     # ===================
     # Metadata
@@ -438,7 +502,8 @@ def process_table(table: Table, mapping: Dict[str, str], checkbox_mapping: Dict[
 def fill_cns_template(
     schema: ReportSchema,
     template_path: str,
-    output_path: str
+    output_path: str,
+    user_inputs: Optional[Dict[str, str]] = None
 ) -> None:
     """
     主要函式：填寫 CNS Word 模板
@@ -455,6 +520,10 @@ def fill_cns_template(
         schema: ReportSchema 物件（包含所有要填寫的資料）
         template_path: Word 模板檔案路徑
         output_path: 輸出檔案路徑
+        user_inputs: 使用者從前端輸入的額外欄位（選填）
+            - report_author: 報告撰寫人
+            - report_signer: 報告簽署人
+            - series_model: 系列型號（逗號分隔）
 
     Raises:
         FileNotFoundError: 當模板檔案不存在時
@@ -473,6 +542,18 @@ def fill_cns_template(
     # 建立 mapping
     placeholder_mapping = build_placeholder_mapping(schema)
     checkbox_mapping = build_checkbox_mapping(schema)
+
+    # 加入使用者輸入的欄位（如果有的話）
+    if user_inputs:
+        if user_inputs.get("report_author"):
+            placeholder_mapping["report_author"] = user_inputs["report_author"]
+            logger.info(f"使用者輸入 - 報告撰寫人: {user_inputs['report_author']}")
+        if user_inputs.get("report_signer"):
+            placeholder_mapping["report_signer"] = user_inputs["report_signer"]
+            logger.info(f"使用者輸入 - 報告簽署人: {user_inputs['report_signer']}")
+        if user_inputs.get("series_model"):
+            placeholder_mapping["series_model"] = user_inputs["series_model"]
+            logger.info(f"使用者輸入 - 系列型號: {user_inputs['series_model']}")
 
     # 載入模板
     doc = Document(template_path)

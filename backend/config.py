@@ -38,14 +38,22 @@ class Settings(BaseSettings):
     )
 
     # ==============================================
-    # Adobe PDF Services 設定
+    # PDF 擷取設定
     # ==============================================
-    adobe_client_id: str = Field(
-        ...,
+    pdf_extractor: str = Field(
+        default="pymupdf",
+        description="PDF 擷取引擎：'pymupdf'（免費）或 'adobe'（需 API key）"
+    )
+
+    # ==============================================
+    # Adobe PDF Services 設定（可選，當 pdf_extractor=adobe 時需要）
+    # ==============================================
+    adobe_client_id: Optional[str] = Field(
+        default=None,
         description="Adobe PDF Services Client ID"
     )
-    adobe_client_secret: str = Field(
-        ...,
+    adobe_client_secret: Optional[str] = Field(
+        default=None,
         description="Adobe PDF Services Client Secret"
     )
     adobe_pdf_services_base_url: str = Field(
@@ -91,6 +99,42 @@ class Settings(BaseSettings):
     llm_chunk_pages: int = Field(
         default=5,
         description="每次送給 LLM 的頁數"
+    )
+
+    # ==============================================
+    # 實驗室固定資訊
+    # ==============================================
+    lab_name: str = Field(
+        default="安捷檢測有限公司",
+        description="實驗室名稱"
+    )
+    lab_address: str = Field(
+        default="新北市新店區寶興路45巷8弄16號4樓",
+        description="實驗室地址"
+    )
+    lab_accreditation_no: str = Field(
+        default="SL2-IN/VA-T-0157",
+        description="標準檢驗局指定試驗室認可編號"
+    )
+    lab_altitude: str = Field(
+        default="約 50 m",
+        description="實驗室海拔高度"
+    )
+
+    # ==============================================
+    # 報告預設值
+    # ==============================================
+    default_test_type: str = Field(
+        default="型式試驗",
+        description="預設試驗方式"
+    )
+    default_cns_standard: str = Field(
+        default="CNS 15598-1",
+        description="預設 CNS 標準"
+    )
+    default_cns_standard_version: str = Field(
+        default="109年版",
+        description="預設 CNS 標準版本"
     )
 
     class Config:

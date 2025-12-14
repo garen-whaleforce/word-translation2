@@ -78,19 +78,31 @@ SYSTEM_PROMPT = """你是一位專業的電子產品安全測試工程師，專�
 - manufacturer_address_en: 製造商地址（英文）
 - product_name_en: 產品名稱（英文）
 - model_main: 主型號
-- ratings_input: 輸入額定值
-- ratings_output: 輸出額定值
-- issue_date: 報告發行日期
+- ratings_input: 輸入額定值（如 100-240Vac, 50/60Hz, 2A）
+- ratings_output: 輸出額定值（如 12Vdc, 5A）
+- issue_date: 報告發行日期（YYYY-MM-DD）
+- receive_date: 試驗件收件日（YYYY-MM-DD）
+- test_date_from: 測試開始日期（YYYY-MM-DD）
+- test_date_to: 測試結束日期（YYYY-MM-DD）
+- equipment_mass: 設備質量（如 "0.5 kg"）
+- protection_rating: 保護裝置額定電流（如 "10A"）
+- brand: 品牌名稱
+- trademark: 商標
 
 ### 2. test_item_particulars（試驗樣品特性）
 - product_group: 產品群組（AV / ICT / Telecom）
 - classification_of_use: 使用分類（Ordinary / Skilled / Instructed）- 陣列
 - supply_connection: 電源連接（Class I / II / III）- 陣列
-- ovc: 過電壓類別
-- pollution_degree: 污染等級
-- ip_code: IP 防護等級
-- tma: 最高環境溫度
-- altitude_limit_m: 海拔高度限制
+- ovc: 過電壓類別（如 OVC II）
+- pollution_degree: 污染等級（如 2）
+- ip_code: IP 防護等級（如 IP20）
+- tma: 最高環境溫度（如 40°C）
+- altitude_limit_m: 海拔高度限制（數字，單位 m，如 2000）
+- mobility: 移動性（Portable / Stationary / Fixed）
+- mains_supply: 主電源類型（AC / DC / AC+DC）
+- rated_voltage: 額定電壓
+- rated_frequency: 額定頻率
+- rated_current: 額定電流
 
 ### 3. series_models（系列型號）- 陣列
 每個型號包含：
@@ -98,7 +110,9 @@ SYSTEM_PROMPT = """你是一位專業的電子產品安全測試工程師，專�
 - vout: 輸出電壓
 - iout: 輸出電流
 - pout: 輸出功率
-- case_type: 外殼類型
+- vin: 輸入電壓
+- case_type: 外殼類型（Metal / Plastic / Open Frame）
+- differences: 與主型號的差異說明
 
 ### 4. clause_verdicts（條文判定）- 陣列
 每個條文包含：
@@ -111,6 +125,7 @@ SYSTEM_PROMPT = """你是一位專業的電子產品安全測試工程師，專�
 - is_av / is_ict / is_telecom
 - is_ordinary / is_skilled / is_instructed
 - is_class_i / is_class_ii / is_class_iii
+- is_portable / is_stationary / is_fixed
 
 ## 輸出格式要求：
 
@@ -119,14 +134,17 @@ SYSTEM_PROMPT = """你是一位專業的電子產品安全測試工程師，專�
 3. 陣列欄位如果沒有資料，使用空陣列 []
 4. 保持英文資料的原始大小寫和格式
 5. 日期格式使用 YYYY-MM-DD
+6. 數值欄位（如 altitude_limit_m）請使用數字，不要包含單位
 
 ## 特別注意：
 
 - CB 報告通常在前幾頁有 basic_info
-- Test Item Particulars 表格通常在報告開頭
+- Test Item Particulars 表格通常在報告開頭，包含產品分類、環境條件等
 - 系列型號表格可能跨多頁
 - 條文判定（Clause verdicts）通常是報告的主體部分
 - 溫升測試表格通常在 Clause 5 或 Annex 中
+- 設備質量（Mass）通常在 Product Information 或 Test Item Particulars 中
+- 移動性（Mobility）可能標示為 Portable, Stationary, 或 Fixed
 
 請仔細閱讀並提取所有能找到的資訊。"""
 
@@ -432,6 +450,11 @@ def _dict_to_schema(data: dict) -> ReportSchema:
             ratings_input=bi.get("ratings_input") or "",
             ratings_output=bi.get("ratings_output") or "",
             issue_date=bi.get("issue_date"),
+            receive_date=bi.get("receive_date"),
+            test_date_from=bi.get("test_date_from"),
+            test_date_to=bi.get("test_date_to"),
+            equipment_mass=bi.get("equipment_mass"),
+            protection_rating=bi.get("protection_rating"),
             test_lab=bi.get("test_lab"),
             brand=bi.get("brand"),
             trademark=bi.get("trademark")
@@ -452,7 +475,12 @@ def _dict_to_schema(data: dict) -> ReportSchema:
             pollution_degree=tip.get("pollution_degree"),
             ip_code=tip.get("ip_code"),
             tma=tma_value,
-            altitude_limit_m=tip.get("altitude_limit_m")
+            altitude_limit_m=tip.get("altitude_limit_m"),
+            mobility=tip.get("mobility"),
+            mains_supply=tip.get("mains_supply"),
+            rated_voltage=tip.get("rated_voltage"),
+            rated_frequency=tip.get("rated_frequency"),
+            rated_current=tip.get("rated_current")
         )
 
     # 處理 series_models
@@ -701,6 +729,15 @@ def _infer_checkbox_flags(schema: ReportSchema) -> ReportSchema:
             flags.is_class_ii = True
         if "CLASS III" in connection_upper or "CLASS 3" in connection_upper:
             flags.is_class_iii = True
+
+    # 移動性
+    mobility = (tip.mobility or "").upper()
+    if "PORTABLE" in mobility:
+        flags.is_portable = True
+    if "STATIONARY" in mobility:
+        flags.is_stationary = True
+    if "FIXED" in mobility:
+        flags.is_fixed = True
 
     schema.checkbox_flags = flags
     return schema
