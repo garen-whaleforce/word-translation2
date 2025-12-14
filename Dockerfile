@@ -15,9 +15,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # 設定工作目錄
 WORKDIR /app
 
-# 安裝系統依賴（如果需要的話）
-# python-docx 不需要額外的系統套件
+# 安裝系統依賴
+# qpdf 用於解鎖有權限限制的 PDF
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    qpdf \
     && rm -rf /var/lib/apt/lists/*
 
 # 複製 requirements 並安裝依賴

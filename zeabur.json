@@ -1,0 +1,47 @@
+{
+  "$schema": "https://schema.zeabur.app/template.json",
+  "name": "CB to CNS Report Generator",
+  "description": "將 CB Test Report PDF 轉換為 CNS Report Word 文件",
+  "template": "DOCKERFILE",
+  "build": {
+    "type": "dockerfile",
+    "dockerfile": "./Dockerfile"
+  },
+  "ports": [
+    {
+      "id": "web",
+      "port": 8000,
+      "type": "HTTP"
+    }
+  ],
+  "env": {
+    "PORT": {
+      "default": "8000",
+      "expose": true
+    },
+    "ADOBE_CLIENT_ID": {
+      "description": "Adobe PDF Services API Client ID",
+      "required": true
+    },
+    "ADOBE_CLIENT_SECRET": {
+      "description": "Adobe PDF Services API Client Secret",
+      "required": true
+    },
+    "AZURE_OPENAI_API_KEY": {
+      "description": "Azure OpenAI API Key",
+      "required": true
+    },
+    "AZURE_OPENAI_ENDPOINT": {
+      "description": "Azure OpenAI Endpoint URL",
+      "required": true
+    },
+    "AZURE_OPENAI_DEPLOYMENT": {
+      "description": "Azure OpenAI Deployment Name",
+      "default": "gpt-4o"
+    },
+    "AZURE_OPENAI_API_VERSION": {
+      "description": "Azure OpenAI API Version",
+      "default": "2024-02-15-preview"
+    }
+  }
+}
