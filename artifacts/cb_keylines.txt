@@ -1,0 +1,1136 @@
+IEC 62368-1
+Audio/video, information and communication technology equipment Part 1: Safety requirements
+Report Number. ..............................:
+2025112058855971-00
+Test specification:
+Standard ..........................................:
+IEC 62368-1:2018
+CB Scheme
+Non-standard test method.............:
+N/A
+Dated 2022-04-14
+Copyright © 2022 IEC System of Conformity Assessment Schemes for Electrotechnical Equipment and Components (IECEE System). All rights reserved.
+This publication may be reproduced in whole or in part for non-commercial purposes as long as the IECEE is acknowledged as copyright owner and source of the material. IECEE takes no responsibility for and will not assume liability for damages resulting from the reader's interpretation of the reproduced material due to its placement and context.
+If this Test Report Form is used by non-IECEE members, the IECEE/IEC logo and the reference to the CB Scheme procedure shall be removed.
+This report is not valid as a CB Test Report unless signed by an approved CB Testing Laboratory and appended to a CB Test Certificate issued by an NCB in accordance with IECEE 02.
+General disclaimer:
+This report shall not be reproduced, except in full, without the written approval of the Issuing CB Testing Laboratory. The authenticity of this Test Report and its contents can be verified by contacting the NCB, responsible for this Test Report.
+Test item description ....................... :
+AC POWER SUPPLY
+Trade Mark(s) ...................................:
+Manufacturer..................................... :
+Same as applicant
+Model/Type reference ...................... :
+MC-601, A1231-200300C-US1
+Ratings .............................................. :
+Input: 100-240V~, 50/60Hz, 1.7A
+Output: 5.0V 3.0A 15.0W or 9.0V 3.0A 27.0W or 15.0V 3.0A 45.0W or 20.0V 3.0A 60.0W or 5.0-20.0V 3.0A
+60.0W MAX
+Testing location/ address.............................:
+21/F., Building 6, Dongyi Intelligent Equipment New Energy Vehicle Park, No.30,Tangxia District, Dongshen Road, Tangxia, Dongguan, Guangdong, China
+Tested by (name, function, signature) ........:
+All tests were conducted under maximum normal load conditions as below, if not specified elsewhere.
+Same as equipment output rating.
+Tests performed (name of test and test clause):
+Power Measurements (6.2.2.2, 6.2.2.3)
+Input test (B.2.5)
+Abnormal Operating and Fault Conditions (B.3, B.4)
+Limited power source (Annex Q.1)
+Unless otherwise specified, all tests were performed on model MC-601 which represent all models.
+Testing location:
+Keyway Testing Technology (Guangdong) Co., Ltd.
+21/F., Building 6, Dongyi Intelligent Equipment New
+Energy Vehicle Park, No.30,Tangxia District,
+Use of uncertainty of measurement for decisions on conformity (decision rule) :
+No decision rule is specified by the IEC standard, when comparing the measurement result with the applicable limit according to the specification in that standard. The decisions on conformity are made without applying the measurement uncertainty (“simple acceptance” decision rule, previously known as “accuracy method”).
+Other:… (to be specified, for example when required by the standard or client, or if national accreditation requirements apply)
+Information on uncertainty of measurement:
+The uncertainties of measurement are calculated by the laboratory based on application of criteria given by OD-5014 for test equipment and application of test methods, decision sheets and operational procedures of IECEE.
+IEC Guide 115 provides guidance on the application of measurement uncertainty principles and applying the decision rule when reporting test results within IECEE scheme, noting that the reporting of the measurement uncertainty for measurements is not necessary unless required by the test standard or customer.
+Calculations leading to the reported values are on file with the NCB and testing laboratory that conducted the testing.
+The artwork below may be only a draft. The use of certification marks on a product must be authorized by the respective NCBs that own these marks.
+aE[_] AC POWER SUPPLY @@adt@es EFICIENCIA ENERGETICA ® $tee.sen.eNow-os-eves:"-(UL JACKS MADE IN CHINA/HECHO EN CHINA C /US Ima@Em1RO1RAE1# (]) LISTED E3 � � 6as MODEL/MODELO/I!S/7JL: MC-601 SA18F09318 YDDD-6001l INPUT/ENTRADA/A\/A\JJ: 100-240V � 50/60Hz 1.7A 1f OUTPUT/SALUDA/Y!/U!I: 6.0v=3.oA15.0WIER!}) [□] \ or 9.0V--=3.0A 27.0W(ti#l) or 15.0V-= 3.0A 45.0W(tit#l) \�or 20.0V= 3.0A 60.0W(t�i.mf®tl:l) or 5.0V-20.0V=3.0A 60.0W MAX(t�i.mf®tl:l) i!JES9IG75Ia,MI®LI@97a,#Ia@ea@3a2a8 ...-� E E
+Test item particulars:
++ %/ - % None
+Supply connection – type .................................:
+pluggable equipment type A - non-detachable supply cord appliance coupler direct plug-in
+pluggable equipment type B - non-detachable supply cord appliance coupler
+permanent connection
+building
+equipment
+N/A
+Equipment mobility ...........................................:
+movable
+other:
+Class of equipment ..........................................:
+Class I
+PD 3
+Manufacturer’s specified Tma ...........................:
+45°C
+Outdoor: minimum °C
+IP protection class ............................................:
+IPX0
+IP__
+Power systems .................................................:
+not AC mains
+Altitude during operation (m) ..........................:
+2000 m or less
+5000 m
+Altitude of test laboratory (m) .........................:
+2000 m or less
+m
+Mass of equipment (kg) ...................................:
+Approx. 0.072kg.
+Testing:
+Date of receipt of test item ................................:
+2025-11-07
+point is used as the decimal separator.
+Manufacturer’s Declaration per sub-clause 4.2.5 of IECEE 02:
+The application for obtaining a CB Test Certificate includes more than one factory location and a declaration from the Manufacturer stating that the sample(s) submitted for evaluation is (are) representative of the products from each factory has been provided...............................................:
+Yes
+When differences exist; they shall be identified in the General product information section.
+Name and address of factory (ies)................. :
+1) Dongguan Aohai Technology Co.,Ltd.
+1.
+This AC POWER SUPPLY is class II construction, designed to power supply for audio/video, information and communication technology equipment, for indoor use only.
+2.
+4.
+The equipment intended to be used up to 5000m above sea level, the factor (1.48) given in table 16 of IEC 62368-1 was considered.
+5.
+This AC POWER SUPPLY maximum continuous output power is 33W. The AC POWER SUPPLY working load with 20.0VDC, 3.0A for 5 minutes, then reduced to 20.0VDC, 2.25A for 5 minutes, then
+reduced to 20.0VDC, 1.67A for long working; or working load with 15.0VDC, 3.0A for 10 minutes, then reduced to 15.0VDC, 2.2A for long working; or load with 11.0VDC, 3.0A for long working. The other outputs could with normal maximum load condition, refer to appended table 5.4.1.4, 9.3, B.1.5, B.2.6 for details.
+6.
+Except for quick charge, USB-C output is 5Vdc only.
+Model Differences:
+All models are identical to each other except for model number.
+Additional application considerations – (Considerations used to test a component or subassembly)
+The product was investigated to the following additional standards:
+UL 1310 Class 2 Power Units under UL 62368-1 clause 4.7 national difference requirements:
+(1)
+Direct Plug In Equipment-Moment Test;
+(2)
+(3)
+Direct Plug-In Security Of Input Contacts;
+(4)
+R
+ES3: The circuit connected to AC mains (Except output circuits)
+Ordinary, Instructed, Skilled
+5.5.4
+ES1: Output circuits
+Ordinary, Instructed, Skilled
+S
+PS3: All circuits except for output circuits
+PCB
+N/A
+PS3: All circuits except for output circuits
+Enclosure
+N/A
+PS3: All circuits except for output circuits
+Input wire
+See 6.3
+PS2: secondary part circuits
+Output circuit / port
+See 6.3
+N/A
+MS1: Mass of the unit
+Ordinary, Instructed, Skilled
+Class and Energy Source
+(e.g. RS1: PMP sound output)
+Body Part
+“B” – Basic Safeguard; “S” – Supplementary Safeguard; “R” – Reinforced Safeguard.
+ENERGY SOURCE DIAGRAM Optional. Manufacturers are to provide the energy sources diagram identify declared energy sources and identifying the demarcations are between power sources. Recommend diagram be provided included in power supply and multipart systems. Insert diagram below. Example diagram designs are; Block diagrams; image(s) with layered data; mechanical drawings ES PS MS TS RS (refer to OVERVIEW OF ENERGY SOURCES AND SAFEGUARDS)
+IEC 62368-1
+Use of components
+(See appended table 4.1.2) Components which are certified to IEC and/or national standards are used correctly within their ratings. Components not covered by IEC standards are tested under the conditions present in the equipment. See also Annex G
+P
+4.1.3
+Equipment design and construction
+Evaluation of safeguards regarding limiting the outputs to fulfill ES1 and protection in regard to risk of spread of fire, mechanical and thermal burn injury considered.
+P
+4.7
+Equipment for direct insertion into mains socket–outlets
+P
+4.7.2
+Mains plug part complies with relevant standard...:
+The US plug according to UL 1310 Class 2 Power Units (Mechanical Requirements on blades Only); The blade dimension was evaluated to be complied with NEMA configurations in accordance with Wiring Devices-Dimensional Specifications,
+4.8
+Equipment containing coin/button cell batteries
+N/A
+Limiting component: U2 After T1 pin 5 to 6, voltage is
+46.8Vpk (ES1) (for output 20.0Vdc, 3.0A)
+(See appended table 5.2)
+P
+Accessibility to outdoor equipment bare parts
+N/A
+5.3.2.4
+Terminals for connecting stripped wire
+N/A
+5.4.2.5
+Multiplication factors for clearances and test voltages ................................................................................:
+1.48
+5.4.4.6.4
+Standard test procedure for non-separable thin sheet material .........................................................:
+N/A
+Solid insulation in wound components
+Approved triple insulation wire used
+P
+Voltage surge test
+Surge test with 50 discharges at a maximum rate of 12/min from a 1nF capacitor charged to 10kV performed. Measured insulation resistance between mains supply to output terminals after the surge test, see below for details.
+P
+Insulation resistance (MΩ) .....................................:
+Between AC plug and output terminals: >500 MΩ.
+P
+5.4.9.1
+Test procedure for type test of solid insulation ......:
+(See appended table 5.4.9)
+5.5.9
+Safeguards for socket-outlets in outdoor equipment
+N/A
+Protective conductor
+Class II equipment
+N/A
+5.7.3
+Equipment set-up, supply connections and earth connections
+P
+N/A
+a) Equipment connected to earthed external circuits, current (mA) ..............................................:
+N/A
+b) Equipment connected to unearthed external circuits, current (mA) ..............................................:
+N/A
+-
+Wire insulation: complying with Clause 6.5. The input wire comply with UL 758 standard, which test method and testing condition equal to IEC/EN 60695-11-21.
+-
+All other components: at least V-2 except for parts mounted on min. V-1 material or small parts of combustible material) with mass less than 4g) or components complying to relevant IEC standard.
+-
+-
+Wire insulation: complying with Clause 6.5. The input wire comply with UL 758 standard, which test method and testing condition equal to IEC/EN 60695-11-21.
+-
+All other components: at least V-2 except for parts mounted on min. V-1 material or small parts of combustible material) with mass less than 4g) or components complying to relevant IEC standard.
+-
+General requirements
+Input wire having rating VW-1 are considered to meet
+IEC/TS 60695-11-21.
+6.6
+Safeguards against fire due to the connection to additional equipment
+P
+7.4
+Use of personal safeguards or personal protective equipment (PPE)
+N/A
+Sharp edges or corners
+Equipment mass, edges and corners are classed as MS1.
+P
+N/A
+MS2 or MS3 part required to be accessible for the function of the equipment
+N/A
+8.5.4
+Special categories of equipment containing moving parts
+N/A
+8.5.4.2
+Equipment containing work cells with MS3 parts
+N/A
+8.5.4.3
+Equipment having electromechanical device for destruction of media
+N/A
+8.5.4.3.1
+Equipment safeguards
+N/A
+8.5.4.3.4
+Cut type and test force (N) ......................................:
+N/A
+8.6
+Stability of equipment
+N/A
+8.7
+Equipment mounted to wall, ceiling or other structure
+N/A
+8.7.1
+Mount means type ..................................................:
+N/A
+8.11
+Mounting means for slide-rail mounted equipment (SRME)
+N/A
+9.5.1
+Equipment safeguard
+P
+N/A
+The standard(s) equipment containing laser(s)
+comply ....................................................................:
+Verdict
+LED types)
+10.4.1
+N/A
+Acoustic output LAeq,T, dB(A) ...................................:
+N/A
+Unweighted RMS output voltage (mV)....................:
+N/A
+Digital output signal (dBFS) ....................................:
+N/A
+10.6.6.1
+Corded listening devices with analogue input
+N/A
+Listening device input voltage (mV) .......................:
+N/A
+10.6.6.2
+Corded listening devices with digital input
+N/A
+Max. acoustic output LAeq,T, dB(A)...........................:
+N/A
+Verdict
+Max. acoustic output LAeq,T, dB(A)...........................:
+N/A
+P
+Audio Amplifiers and equipment with audio amplifiers................................................................ :
+N/A
+Supply voltage and tolerances
+Rated input: 100-240V~; ±10% tolerances were considered.
+P
+B.2.5
+Input test ................................................................ :
+(See appended table B.2.5)
+B.3.5
+Maximum load at output terminals
+(See appended table B.3 and
+C.1
+Protection of materials in equipment from UV radiation
+N/A
+E
+TEST CONDITIONS FOR EQUIPMENT CONTAINING AUDIO AMPLIFIERS
+N/A
+N/A
+Maximum non-clipped output power (W)............... :
+⎯
+⎯
+Open-circuit output voltage (V).............................. :
+⎯
+N/A
+Audio signal source type ....................................... :
+⎯
+Audio output power (W) ......................................... :
+⎯
+Audio output voltage (V) ........................................ :
+⎯
+F
+EQUIPMENT MARKINGS, INSTRUCTIONS, AND INSTRUCTIONAL SAFEGUARDS
+P
+F.2.2
+Graphic symbols according to IEC, ISO or manufacturer specific
+P
+F.3
+Equipment markings
+P
+F.3.1
+Equipment marking locations
+P
+F.3.2
+Equipment identification markings
+P
+F.3.2.1
+Manufacturer identification ................................... :
+See copy of marking plate
+F.3.2.2
+Model identification ............................................... :
+See copy of marking plate
+F.3.3
+Equipment rating markings
+P
+F.3.3.1
+Equipment with direct connection to mains
+P
+F.3.3.2
+Equipment without direct connection to mains
+N/A
+F.3.3.7
+Equipment with multiple supply connections
+N/A
+Replacement fuse identification and rating markings ............................................................................... :
+The fuses are located within the equipment and not replaceable by an ordinary person or an instructed person.
+“T3.15AL/250Vac” marked on PCB layout near fuse F1
+F.3.6
+Equipment markings related to equipment classification
+P
+F.3.6.1
+Class I equipment
+N/A
+Protective bonding conductor terminals ............... :
+Not permanently connected equipment
+N/A
+F.3.6.2
+Equipment class marking ...................................... :
+P
+F.3.7
+Equipment IP rating marking ................................. :
+IPX0
+P
+F.3.8
+External power supply output marking .................. :
+See copy of marking plate
+P
+b) Equipment for use in locations where children not likely to be present
+N/A
+P
+d) Equipment intended for use only in restricted access area
+N/A
+e) Equipment intended to be fastened in place
+N/A
+f) Instructions for audio equipment terminals
+N/A
+N/A
+i) Graphic symbols used on equipment
+N/A
+j) Permanently connected equipment not provided with all-pole mains switch
+N/A
+N/A
+l) Equipment containing insulating liquid
+N/A
+m) Installation instructions for outdoor equipment
+N/A
+G.1.2
+Ratings, endurance, spacing, maximum load
+N/A
+G.2.3
+Relay controlling connectors supplying power to other equipment
+N/A
+N/A
+Thermal cut-outs tested as part of the equipment as indicated in c)
+N/A
+N/A
+b) Thermal links tested as part of the equipment
+N/A
+Plug is shaped that insertion into mains socket-outlets or appliance coupler is unlikely
+Output connector with a shape that insertion into a mains connector or socket is unlikely to occur.
+P
+Wire insulation in wound components
+Certified triple insulation wire used.
+P
+General
+Secondary windings used triple insulation wire
+P
+N/A
+Type ....................................................................... :
+⎯
+N/A
+IC limiter output current (max. 5A)......................... :
+⎯
+Manufacturers’ defined drift .................................. :
+⎯
+P
+Type test voltage Vini,a............................................ :
+Min. 4000VDC
+N/A
+ICX with associated circuitry tested in equipment
+N/A
+N/A
+Smallest capacitance and smallest resistance specified by ICX manufacturer for impulse test..... :
+⎯
+H.3.2
+Tripping device and monitoring voltage
+N/A
+H.3.2.1
+Conditions for use of a tripping device or a monitoring voltage
+N/A
+H.3.2.2
+Tripping device
+N/A
+Winding wire insulation .......................................... :
+Certified triple insulation wire used as secondary winding. (See appended table 4.1.2)
+⎯
+L.2
+Permanently connected equipment
+Not permanently connected equipment.
+N/A
+L.4
+Single-phase equipment
+P
+L.5
+Three-phase equipment
+N/A
+L.8
+Multiple power sources
+Only AC mains.
+M
+EQUIPMENT CONTAINING BATTERIES AND THEIR PROTECTION CIRCUITS
+N/A
+M.2.1
+Batteries and their cells comply with relevant IEC standards ............................................................... :
+No battery.
+M.3
+Protection circuits for batteries provided within the equipment
+N/A
+M.4
+Additional safeguards for equipment containing a portable secondary lithium battery
+N/A
+M.4.4
+Drop test of equipment containing a secondary lithium battery
+N/A
+N/A
+The ES3 and PS3 keep-out volume in Figure P.3 not applicable to transportable equipment
+N/A
+Transportable equipment with metalized plastic parts ....................................................................... :
+N/A
+P
+a) Inherently limited output
+N/A
+b) Impedance limited output
+N/A
+c) Regulating network limited output
+(See appended table Q.1)
+P
+d) Overcurrent protective device limited output
+N/A
+N/A
+Maximum output current (A) ................................. :
+N/A
+S.1
+Flammability test for fire enclosures and fire barrier materials of equipment where the steady state power does not exceed 4 000 W
+N/A
+S.5
+Flammability test for fire enclosure materials of equipment with a steady state power exceeding
+4 000 W
+V.1
+Accessible parts of equipment
+P
+Y.5
+Protection of equipment within an outdoor enclosure
+N/A
+Y.5.5.2
+IP5X equipment
+N/A
+Y.5.5.3
+IP6X equipment
+N/A
+I (mA)
+Type1)
+Additional Info 2)
+Model: MC-601 (output: 20.0Vdc, 3.0A)
+264Vac, 60Hz
+264Vac, 60Hz
+Output + to -
+Normal
+264Vac, 60Hz
+Output + to -
+Output overload
+20.01Vd c
+264Vac, 60Hz
+Output + to -
+Single fault – SC U2 pin 7 to 1
+264Vac, 60Hz
+Output + to -
+Single fault – SC Q2 pin D to
+264Vac, 60Hz
+Output + to -
+Single fault – SC U3 pin 1 to 2
+264Vac, 60Hz
+Output + to -
+Single fault – SC U3 pin 3 to 4
+264Vac, 60Hz
+Output + to -
+Single fault – OC U3 pin 1
+264Vac, 60Hz
+Output + to -
+Single fault – OC U3 pin 3
+264Vac, 60Hz
+Output + to -
+Single fault –
+264Vac, 60Hz
+Output +/- to earth
+Normal
+264Vac, 60Hz
+Output +/- to earth
+Output overload
+--
+264Vac, 60Hz
+Output +/- to earth
+Single fault – SC U2 pin 7 to 1
+264Vac, 60Hz
+Output +/- to earth
+Single fault – SC Q2 pin D to
+264Vac, 60Hz
+Output +/- to earth
+Single fault – SC U3 pin 1 to 2
+264Vac, 60Hz
+Output +/- to earth
+Single fault – SC U3 pin 3 to 4
+264Vac, 60Hz
+Output +/- to earth
+Single fault – OC U3 pin 1
+264Vac, 60Hz
+Output +/- to earth
+Single fault – OC U3 pin 3
+264Vac, 60Hz
+Output +/- to earth
+Single fault –
+Supplementary information:
+1) Type: Steady state (SS), Capacitance (CP), Single pulse (SP), Repetitive pulses (RP), etc. 2) Additional Info: Frequency, Pulse duration, Pulse off time, Capacitance value, etc. Abbreviation: SC= short circuit; OC= open circuit.
+5.4.1.8
+Comments
+Model: MC-601 (output: 20.0Vdc, 3.0A)
+T1 pin 1 to pin 5
+Supplementary information:
+Input voltage: 240Vac, 60Hz
+IEC 62368-1
+Object/ Part No./Material
+Manufacturer/trademark
+Thickness (mm)
+Object/Part No./Material
+Manufacturer/trademark
+Thickness (mm)
+DongGuan
+TPIPLASTIC Co., Ltd.
+1.5*2
+DongGuan
+TPIPLASTIC Co., Ltd.
+1.5*2
+8.7
+Transformer T1: primary windings to USB-C output port(R)
+568
+2) Complete Electric Strength voltage (E.S. (V) when 5.4.2.4 applied)
+3) Provide Material Group IIIb 4) Core of transformer T1 considered as primary part; 5) The equipment intended to used up to 5000m above sea level, the factor (1.48) given in table 16 of IEC
+62368-1: 2018 was considered.
+See appended table 4.1.2
+Triple insulation wire of T1 *
+568
+--
+Triple
+insulation wire
+568
+Triple insulation wire of T1
+--
+Bobbin of transformer T1: 1.2x2x568/0.34=4010V, see table 5.4.9
+Enclosure / plug holder, Insulation barrier: 1.2x2x568/0.30=4544V, see table 5.4.9 Triple Insulation wire of T1: 1.2x2x568/0.34=4010V, see table 5.4.9 Insulation tape of T1: 1.2x2x568/0.34=4010V, see table 5.4.9
+5.4.9
+--
+L/N to output terminal
+DC
+Freq. (Hz)
+Model: MC-601 (output: 20.0Vdc, 3.0A)
+Plastic enclosure with metal foil to earth (CY1=220pF)
+ES1
+Output overload
+264Vac
+PS class
+Model: MC-601 (output: 5.0Vdc, 3.0A)
+Clause
+(declared)
+USB-C Output
+Worst-case fault
+PS2
+USB-C Output
+Single fault – SC U2 pin 7 to 1 #
+PS1
+USB-C Output
+Single fault – SC Q2 pin D to S #
+PS1
+USB-C Output
+Single fault – SC U3 pin 1 to 2 #
+PS1
+USB-C Output
+Single fault – SC U3 pin 3 to 4 #
+PS1
+USB-C Output
+Single fault – OC U3 pin 1 #
+PS1
+USB-C Output
+Single fault – OC U3 pin 3 #
+PS1
+USB-C Output
+Single fault – SC
+PS1
+USB-C Output
+Single fault – SC
+PS2
+Model: MC-601 (output: 9.0Vdc, 3.0A)
+All internal circuit/ components
+(declared)
+USB-C Output
+Worst-case fault
+PS2
+USB-C Output
+Single fault – SC U2 pin 7 to 1 #
+PS1
+USB-C Output
+Single fault – SC Q2 pin D to S #
+PS1
+USB-C Output
+Single fault – SC U3 pin 1 to 2 #
+PS1
+USB-C Output
+Single fault – SC U3 pin 3 to 4 #
+PS1
+USB-C Output
+Single fault – OC U3 pin 1 #
+PS1
+USB-C Output
+Single fault – OC U3 pin 3 #
+PS1
+USB-C Output
+Single fault – SC
+PS1
+USB-C Output
+Single fault – SC
+PS2
+Model: MC-601 (output: 15.0Vdc, 3.0A)
+IEC 62368-1
+(declared)
+USB-C Output
+Worst-case fault
+PS2
+USB-C Output
+Single fault – SC U2 pin 7 to 1 #
+PS1
+USB-C Output
+Single fault – SC Q2 pin D to S #
+PS1
+USB-C Output
+Single fault – SC U3 pin 1 to 2 #
+PS1
+USB-C Output
+Single fault – SC U3 pin 3 to 4 #
+PS1
+USB-C Output
+Single fault – OC U3 pin 1 #
+PS1
+USB-C Output
+Single fault – OC U3 pin 3 #
+PS1
+USB-C Output
+Single fault – SC
+PS1
+USB-C Output
+Single fault – SC
+PS2
+Model: MC-601 (output: 20.0Vdc, 3.0A)
+All internal circuit/ components
+(declared)
+USB-C Output
+Worst-case fault
+PS2
+USB-C Output
+Single fault – SC U2 pin 7 to 1 #
+PS1
+USB-C Output
+Single fault – SC Q2 pin D to S #
+PS1
+USB-C Output
+Single fault – SC U3 pin 1 to 2 #
+PS1
+USB-C Output
+Single fault – SC U3 pin 3 to 4 #
+PS1
+USB-C Output
+Single fault – OC U3 pin 1 #
+PS1
+USB-C Output
+Single fault – OC U3 pin 3 #
+PS1
+USB-C Output
+Single fault – SC
+PS1
+USB-C Output
+Single fault – SC
+PS2
+Model: MC-601 (output: 11.0Vdc, 3.0A)
+IEC 62368-1
+(declared)
+USB-C Output
+Worst-case fault
+PS2
+USB-C Output
+Single fault – SC U2 pin 7 to 1 #
+PS1
+USB-C Output
+Single fault – SC Q2 pin D to S #
+PS1
+USB-C Output
+Single fault – SC U3 pin 1 to 2 #
+PS1
+USB-C Output
+Single fault – SC U3 pin 3 to 4 #
+PS1
+USB-C Output
+Single fault – OC U3 pin 1 #
+PS1
+USB-C Output
+Single fault – OC U3 pin 3 #
+PS1
+USB-C Output
+Single fault – SC
+PS1
+USB-C Output
+Single fault – SC
+Arcing PIS? Yes / No
+All internal circuits / components except output connector
+--
+Operating and fault condition
+Dissipate power (W)
+Arcing PIS? Yes / No
+All internal circuits / components and output connector
+--
+N/A
+Lamp manufacturer
+Lamp type
+Explosion method
+T (°C)
+Allowed Tmax (°C)
+Model: MC-601 (load with 20.0Vdc, 3.0A for 5 minutes, then reduced to 20.0Vdc, 2.25A for 5 minutes, then reduced to 20.0Vdc, 1.67A for long working as specification)
+90V/60Hz Horizontal
+105
+Input wire
+63.8
+--
+Model: MC-601 (load with 11.0Vdc, 3.0A for long working)
+90V/60Hz Horizontal
+105
+Input wire
+57.9
+T (°C)
+Allowed Tmax (°C)
+Insulation class
+Supplementary information:
+Note 1: Tma should be considered as directed by appliable requirement
+Note 2: Tma is not included in assessment of Touch Temperatures (Clause 9)
+1.
+2.
+With a specified maximum ambient temperature and test temperature of 45°C, the maximum permitted temperatures are calculated as follows: T1 Winding components (providing safety isolation): Class 130 (B) Tmax = 120°C - 10°C = 110°C.
+3.
+B.2.5
+TABLE: Input test
+P
+Condition/status
+Model: MC-601
+90V
+Load with 5.0Vdc, 3.0A
+Model: MC-601
+90V
+Load with 9.0Vdc, 3.0A
+Model: MC-601
+90V
+Load with 15.0Vdc, 3.0A
+Model: MC-601
+90V
+Load with 20.0Vdc, 3.0A
+Model: MC-601
+90V
+Supplementary information:
+Equipment may be have rated current or rated power or both. Both should be measured.
+B.3, B.4
+⎯
+Power source for EUT: Manufacturer, model/type, outputrating...:
+See appended table 4.1.2
+Observation
+Model: MC-601 (load with 11.0Vdc, 3.0A for long working)
+IEC 62368-1
+Verdict
+Output
+Overload
+0.02
+The maximum output current was 3.16A, when load to 3.17A, the unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 10.98Vdc, Touch current (output +/- to earth): 0.074mApk;
+Plastic enclosure to earth:
+0.02
+Output port normal load, The transformer maximum output current was 2.0A, when load to 2.1A, the unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 10.98Vdc, Touch current (output +/- to earth): 0.074mApk;
+Plastic enclosure to earth:
+Ambient: 25.0°C
+Model: MC-681 (load with 20.0Vdc, 3.0A for 5 minutes, then reduced to 20.0Vdc, 2.25A for 5 minutes, then reduced to 20.0Vdc, 1.67A for long working as specification)
+Output
+Overload
+0.02
+The maximum output current was 2.10A, when load to 2.11A, the unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 20.01Vdc, Touch current (output +/- to
+IEC 62368-1
+0.02
+Output port normal load, The transformer maximum output current was 1.9A, when load to 2.0A, the unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 20.01Vdc, Touch current (output +/- to earth): 0.074mApk;
+Plastic enclosure to earth:
+0
+F1 open immediately. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.088mApk. Plastic enclosure to earth: 0.02mApk.
+EC1 #
+0
+F1 open immediately. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.088mApk. Plastic enclosure to earth: 0.02mApk.
+EC2 #
+0
+F1 open immediately. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth):
+Clause
+0
+F1 open immediately. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.088mApk. Plastic enclosure to earth: 0.02mApk.
+D2 #
+0
+F1 open immediately. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.088mApk. Plastic enclosure to earth: 0.02mApk.
+R19 #
+0
+F1 open immediately. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.088mApk. Plastic enclosure to earth: 0.02mApk.
+U1 pin 1 to 7 #
+0
+F1 open immediately. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.088mApk. Plastic enclosure to earth: 0.02mApk.
+U1 pin 4 to 7 #
+0
+F1 open immediately. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.088mApk. Plastic enclosure to earth: 0.02mApk.
+U1 pin 8 to 9 #
+0
+F1 open immediately. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.088mApk. Plastic enclosure to earth: 0.02mApk.
+Q1 pin 1 to 3
+0.02
+The unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.074mApk. Plastic enclosure to earth: 0.02mApk.
+Q1 pin 2 to 3
+0.02
+The unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth):
+Report No. 2025112058855971-00 IEC 62368-1 Clause Requirement + Test Result - Remark Verdict
+0.02
+The unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.074mApk. Plastic enclosure to earth: 0.02mApk.
+U3 pin 1 to 2
+0.02
+The unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.074mApk. Plastic enclosure to earth: 0.02mApk.
+U3 pin 3 to 4
+0.02
+The unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.074mApk. Plastic enclosure to earth: 0.02mApk.
+U3 pin 1
+0.02
+The unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.074mApk. Plastic enclosure to earth: 0.02mApk.
+U3 pin 3
+0.02
+The unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.074mApk. Plastic enclosure to earth: 0.02mApk.
+T1 pin 1 to 2
+0.02
+The unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.074mApk. Plastic enclosure to earth: 0.02mApk.
+T1 pin 3 to 4
+0.02
+The unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.074mApk. Plastic enclosure
+Clause
+0.02
+The unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.074mApk. Plastic enclosure to earth: 0.02mApk.
+T1 pin 5 to 6
+0.02
+The unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.074mApk. Plastic enclosure to earth: 0.02mApk.
+U2 pin 7 to 1
+0.02
+The unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.074mApk. Plastic enclosure to earth: 0.02mApk.
+EC7
+0.02
+The unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.074mApk. Plastic enclosure to earth: 0.02mApk.
+Q2 pin D to S
+0.02
+The unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.074mApk. Plastic enclosure to earth: 0.02mApk.
+Output
+SC
+0.02
+The unit shut down immediately. Recoverable. NT, NC, NB. Prospective Touch Voltage: 0Vdc, Touch current (output +/- to earth): 0.074mApk. Plastic enclosure to earth: 0.02mApk.
+Supplementary information:
+3.
+Results Key: NB=No indication of dielectric breakdown; NC=Cheesecloth remained intact; NT=Tissue paper remained intact; IP=Internal protection operated (list component); CD=Components damaged (list
+IEC 62368-1
+damaged components)
+[ x ] During and after abnormal operating condition test, the output voltage did not increase by more than 3V or 10% which one is higher of its rated output voltage under normal operating condition (for USB port);
+[ ] During and after abnormal operating condition test, the output voltage did not increase by more than 10% of its rated output voltage under normal operating condition (For other outlet or connector at ES1).
+Note:
+M.3
+TABLE: Protection circuits for batteries provided within the equipment
+N/A
+⎯
+Equipment Specification
+Charging
+--
+Manufacturer/type
+Battery specification
+M.4.2
+TABLE: Charging safeguards for equipment containing a secondary lithium battery
+N/A
+Battery
+manufacturer/type
+Operating and fault condition
+P
+Output
+Circuit
+Limit
+Model: MC-601 (output: 5.0Vdc, 3.0A)
+USB-C
+Output
+Normal
+USB-C
+Output
+U2 pin 7 to 1 SC #
+USB-C
+Output
+Q2 pin D to S SC #
+USB-C
+Output
+U3 pin 1 to 2 SC #
+USB-C
+Output
+U3 pin 3 to 4 SC #
+USB-C
+Output
+U3 pin 1 OC #
+USB-C
+Output
+U3 pin 3 OC #
+USB-C
+Output
+R19 SC **
+USB-C
+Output
+R35 SC
+100
+Model: MC-601 (output: 9.0Vdc, 3.0A)
+USB-C
+Output
+Normal
+USB-C
+Output
+U2 pin 7 to 1 SC #
+USB-C
+Output
+Q2 pin D to S SC #
+USB-C
+Output
+U3 pin 1 to 2 SC #
+USB-C
+Output
+U3 pin 3 to 4 SC #
+USB-C
+Output
+U3 pin 1 OC #
+USB-C
+Output
+U3 pin 3 OC #
+USB-C
+Output
+R19 SC **
+USB-C
+Output
+R35 SC
+100
+Model: MC-601 (output: 15.0Vdc, 3.0A)
+USB-C
+Output
+Normal
+USB-C
+Output
+U2 pin 7 to 1 SC #
+USB-C
+Output
+Q2 pin D to S SC #
+USB-C
+Output
+U3 pin 1 to 2 SC #
+USB-C
+Output
+U3 pin 3 to 4 SC #
+USB-C
+Output
+U3 pin 1 OC #
+USB-C
+Output
+U3 pin 3 OC #
+USB-C
+Output
+R19 SC **
+USB-C
+Output
+R35 SC
+100
+Model: MC-601 (output: 20.0Vdc, 3.0A)
+USB-C
+Output
+Normal
+USB-C
+Output
+U2 pin 7 to 1 SC #
+USB-C
+Output
+Q2 pin D to S SC #
+USB-C
+Output
+U3 pin 1 to 2 SC #
+USB-C
+Output
+U3 pin 3 to 4 SC #
+USB-C
+Output
+U3 pin 1 OC #
+USB-C
+Output
+U3 pin 3 OC #
+USB-C
+Output
+R19 SC **
+USB-C
+Output
+R35 SC
+100
+Model: MC-601 (output: 11.0Vdc, 3.0A)
+USB-C
+Output
+Normal
+USB-C
+Output
+U2 pin 7 to 1 SC #
+USB-C
+Output
+Q2 pin D to S SC #
+USB-C
+Output
+U3 pin 1 to 2 SC #
+USB-C
+Output
+U3 pin 3 to 4 SC #
+USB-C
+Output
+U3 pin 1 OC #
+USB-C
+Output
+U3 pin 3 OC #
+USB-C
+Output
+R19 SC **
+USB-C
+Output
+R35 SC
+Object / part No.
+Manufacturer/ trademark
+Type / model
+Technical data
+Standard
+Mark(s) of conformity1)
+(Alternative)
+DongGuan TPIPLASTIC Co., Ltd.
+PC 618-R(aa) (f1),
+(Alternative)
+DongGuan TPIPLASTIC Co., Ltd.
+PC 618-R(aa) (f1),
+Verdict
+Input wire
+DONGGUAN ZHONGZHENG WIRE & CABLE TECH CO LTD
+UL
+- Triple insulation wire
+Heyuan Koshen Insulator Co Ltd
+HUIZHOU GOLDEN OCEAN MAGNET WIRE
+FACTORY (for
+UL)
+UPC10XXX
+Reinforced insulation, Dti≧0.4mm, Ext. cl≧8.0mm, Ext. cr≧8.0mm, min. 110°C, Double protection type, providing 5000 Vac isolation
+UL 1577
+SMD
+Max. 220pF, min. 250Vac, 125°C, Y1 type
+IEC/EN/UL
+TRX (for UL)
+Max. 220pF, min. 250Vac, 125°C, Y1 type
+IEC/EN/UL
+SMD
+Max. 220pF, min. 250Vac, 125°C, Y1 type
+IEC/EN/UL
+UL E41429
+-Triple insulation wire
+Furukawa Electric Co., Ltd.
+Verdict
+- Insulation tape outside triple insulation wire (Secondary)
+JINGJIANG YAHUA PRESSURE SENSITIVE GLUE CO LTD
+UL E41429
+-Triple insulation wire
+E&B TECHNOLOGY CO LTD
+UL E315265
+- Insulation tape outside triple insulation wire (Secondary)
+JINGJIANG YAHUA PRESSURE SENSITIVE GLUE CO LTD
+UL E41429
+-Triple insulation wire
+Furukawa Electric Co., Ltd.
+UL E166483
+- Insulation tape outside triple insulation wire (Secondary)
+JINGJIANG YAHUA PRESSURE SENSITIVE GLUE CO LTD
+1) Provided evidence ensures the agreed level of compliance. See OD-CB2039. 2) License available upon request.
+3) All transformers T1 are identical to each other except for insulation system and manufacturer.

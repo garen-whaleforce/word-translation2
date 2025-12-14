@@ -1,0 +1,38 @@
+# ==============================================
+# CNS 報告 Word 模板資料夾
+# ==============================================
+#
+# 請在此資料夾放置您的 CNS 報告 Word 模板（.docx 格式）
+#
+# 模板準備指南：
+#
+# 1. 使用 {{placeholder}} 格式標記需要填寫的欄位
+#
+# 2. 常用 placeholder：
+#    - {{report_no}}           報告編號
+#    - {{cb_report_no}}        CB 報告編號
+#    - {{standard}}            適用標準
+#    - {{applicant_en}}        申請人（英文）
+#    - {{applicant_zh}}        申請人（中文）
+#    - {{manufacturer_en}}     製造商（英文）
+#    - {{manufacturer_zh}}     製造商（中文）
+#    - {{product_name_en}}     產品名稱（英文）
+#    - {{product_name_zh}}     產品名稱（中文）
+#    - {{model_main}}          主型號
+#    - {{ratings_input}}       輸入額定值
+#    - {{ratings_output}}      輸出額定值
+#
+# 3. 系列型號（1-60）：
+#    - {{series_model_1}}      第 1 個型號
+#    - {{series_model_1_vout}} 第 1 個型號輸出電壓
+#    - {{series_model_1_iout}} 第 1 個型號輸出電流
+#    - {{series_model_1_pout}} 第 1 個型號輸出功率
+#    ...以此類推
+#
+# 4. Checkbox 使用 □ 符號，程式會自動將對應的改成 ■
+#
+# 5. 注意事項：
+#    - 請勿在此檔案中使用密碼保護
+#    - 建議使用簡單的字型（Arial、新細明體）
+#    - 儲存時使用 .docx 格式
+#

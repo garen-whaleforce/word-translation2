@@ -1,0 +1,395 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AST-B CNS Report Data Schema",
+  "description": "CB 報告轉 CNS 報告所需的結構化資料格式",
+  "type": "object",
+  "properties": {
+    "_notes": {
+      "type": "object",
+      "description": "Schema 補充說明",
+      "properties": {
+        "factories": "原 placeholders.md 為單一 factory_name/factory_address，但 CB 報告可能有多個工廠，故改為 array",
+        "ratings_output_lines": "輸出額定值可能有多行（多組電壓/電流），故額外提供 array 格式",
+        "series_models": "系列型號可能有多個，使用 array",
+        "revision_history": "報告修訂紀錄可能有多筆，使用 array of objects"
+      }
+    },
+    "report_number": {
+      "type": "string",
+      "description": "報告編號",
+      "_ast_location": "table:0, row:3, col:0",
+      "_cb_source": "Report Number"
+    },
+    "applicant_name": {
+      "type": "string",
+      "description": "申請者名稱",
+      "_ast_location": "table:0, row:4, col:0",
+      "_cb_source": "Applicant's name"
+    },
+    "applicant_address": {
+      "type": "string",
+      "description": "申請者地址",
+      "_ast_location": "table:0, row:5, col:0",
+      "_cb_source": "Applicant address"
+    },
+    "factories": {
+      "type": "array",
+      "description": "生產廠場清單（可能有多個工廠）",
+      "_ast_location": "table:0, row:6-7",
+      "_cb_source": "Name and address of factory(ies)",
+      "_notes": "原 placeholders.md 為單一欄位，但 CB 報告支援多工廠，故改為 array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "工廠名稱"
+          },
+          "address": {
+            "type": "string",
+            "description": "工廠地址"
+          }
+        },
+        "required": ["name", "address"]
+      }
+    },
+    "test_standard": {
+      "type": "string",
+      "description": "試驗標準(規範)",
+      "_ast_location": "table:0, row:8, col:0",
+      "_cb_source": "Standard",
+      "examples": ["IEC 62368-1:2018"]
+    },
+    "product_name": {
+      "type": "string",
+      "description": "品名",
+      "_ast_location": "table:0, row:10, col:0",
+      "_cb_source": "Test item description",
+      "examples": ["AC POWER SUPPLY"]
+    },
+    "main_model": {
+      "type": "string",
+      "description": "主型號",
+      "_ast_location": "table:0, row:11, col:0",
+      "_cb_source": "Model/Type reference",
+      "examples": ["MC-601"]
+    },
+    "series_models": {
+      "type": "array",
+      "description": "系列型號清單",
+      "_ast_location": "table:0, row:12, col:0",
+      "_cb_source": "Model/Type reference (series)",
+      "items": {
+        "type": "string"
+      },
+      "examples": [["A1231-200300C-US1"]]
+    },
+    "trademark": {
+      "type": "string",
+      "description": "廠牌/商標",
+      "_ast_location": "table:0, row:13, col:0",
+      "_cb_source": "Trade Mark(s)"
+    },
+    "ratings": {
+      "type": "object",
+      "description": "額定值",
+      "_ast_location": "table:0, row:14, col:2",
+      "properties": {
+        "input": {
+          "type": "string",
+          "description": "輸入額定值",
+          "_cb_source": "Input",
+          "examples": ["100-240V~, 50/60Hz, 1.7A"]
+        },
+        "output": {
+          "type": "string",
+          "description": "輸出額定值（完整字串）",
+          "_cb_source": "Output"
+        },
+        "output_lines": {
+          "type": "array",
+          "description": "輸出額定值（分行格式，每組電壓/電流/功率一項）",
+          "_notes": "原 placeholders.md 為單一字串，但多組輸出建議拆分為 array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "voltage": {
+                "type": "string",
+                "description": "電壓",
+                "examples": ["5.0V", "9.0V", "15.0V", "20.0V"]
+              },
+              "current": {
+                "type": "string",
+                "description": "電流",
+                "examples": ["3.0A"]
+              },
+              "power": {
+                "type": "string",
+                "description": "功率",
+                "examples": ["15.0W", "27.0W", "45.0W", "60.0W"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "sample_receipt_date": {
+      "type": "string",
+      "format": "date",
+      "description": "試驗件收件日",
+      "_ast_location": "table:0, row:18, col:0",
+      "_cb_source": "Date of receipt of test item",
+      "examples": ["2025-11-07"]
+    },
+    "test_date": {
+      "type": "string",
+      "format": "date",
+      "description": "執行測試日",
+      "_ast_location": "table:0, row:19, col:0",
+      "_cb_source": "Test date"
+    },
+    "report_issue_date": {
+      "type": "string",
+      "format": "date",
+      "description": "報告發行日",
+      "_ast_location": "table:0, row:20, col:0",
+      "_cb_source": "Date of issue",
+      "examples": ["2025-12-02"]
+    },
+    "testing_lab": {
+      "type": "string",
+      "description": "測試單位名稱",
+      "_ast_location": "table:0, row:21, col:0",
+      "_cb_source": "Name of Testing Laboratory",
+      "examples": ["Keyway Testing Technology (Guangdong) Co., Ltd."]
+    },
+    "testing_lab_address": {
+      "type": "string",
+      "description": "測試單位地址",
+      "_ast_location": "table:0, row:22, col:0",
+      "_cb_source": "Testing location/address"
+    },
+    "tma": {
+      "type": "string",
+      "description": "製造商宣告最高環境溫度 Tma",
+      "_ast_location": "table:3, row:12, col:1",
+      "_cb_source": "Manufacturer's specified Tma",
+      "examples": ["45°C"]
+    },
+    "outdoor_min_temp": {
+      "type": ["string", "null"],
+      "description": "室外最低溫度（如適用）",
+      "_ast_location": "table:3, row:12, col:1",
+      "_cb_source": null,
+      "_needs_manual": true
+    },
+    "ip_rating": {
+      "type": "string",
+      "description": "IP 防護等級",
+      "_ast_location": "table:3, row:13, col:1",
+      "_cb_source": "IP protection class",
+      "examples": ["IPX0"]
+    },
+    "altitude": {
+      "type": "string",
+      "description": "設備適用的海拔高度",
+      "_ast_location": "table:3, row:15, col:0",
+      "_cb_source": "Altitude during operation (m)",
+      "examples": ["2000 m or less", "5000 m"]
+    },
+    "test_lab_altitude": {
+      "type": "string",
+      "description": "測試實驗室海拔高度",
+      "_ast_location": "table:3, row:16, col:0",
+      "_cb_source": "Altitude of test laboratory (m)",
+      "examples": ["2000 m or less"]
+    },
+    "equipment_mass": {
+      "type": "string",
+      "description": "設備質量",
+      "_ast_location": "table:3, row:17, col:0",
+      "_cb_source": "Mass of equipment (kg)",
+      "examples": ["Approx. 0.072kg"]
+    },
+    "equipment_class": {
+      "type": "string",
+      "description": "設備等級",
+      "_ast_location": "table:3, row:8, col:1",
+      "_cb_source": "Class of equipment",
+      "examples": ["Class I", "Class II", "PD 3"]
+    },
+    "supply_connection_type": {
+      "type": "string",
+      "description": "供電連接方式",
+      "_ast_location": "table:3, row:5, col:1",
+      "_cb_source": "Supply connection – type",
+      "examples": ["pluggable equipment type A", "direct plug-in"]
+    },
+    "equipment_mobility": {
+      "type": "string",
+      "description": "設備可移動性",
+      "_ast_location": "table:3, row:7, col:1",
+      "_cb_source": "Equipment mobility",
+      "examples": ["movable", "stationary", "hand-held"]
+    },
+    "cb_certificate_number": {
+      "type": "string",
+      "description": "CB 證書號碼",
+      "_ast_location": "table:3, row:18 (備註)",
+      "_cb_source": "CB Certificate Number",
+      "examples": ["DK-174052-UL"]
+    },
+    "cb_report_number": {
+      "type": "string",
+      "description": "CB 報告號碼",
+      "_ast_location": "table:3, row:18 (備註)",
+      "_cb_source": "Report Number",
+      "examples": ["2025112058855971-00"]
+    },
+    "limiting_component_voltage": {
+      "type": "string",
+      "description": "限制元件電壓",
+      "_ast_location": "table:7, row:11, col:2",
+      "_cb_source": "Limiting component voltage",
+      "examples": ["U2 After T1 pin 5 to 6, voltage is 46.8Vpk (ES1)"]
+    },
+    "insulation_resistance": {
+      "type": "string",
+      "description": "絕緣電阻",
+      "_ast_location": "table:7, row:72, col:2",
+      "_cb_source": "Insulation resistance (MΩ)",
+      "examples": [">500 MΩ"]
+    },
+    "multiplication_factor": {
+      "type": "number",
+      "description": "超過海拔 2000m 之乘數因子",
+      "_ast_location": "table:7, row:46, col:1",
+      "_cb_source": "Multiplication factors for clearances and test voltages",
+      "examples": [1.48]
+    },
+    "bsmi_report_number": {
+      "type": ["string", "null"],
+      "description": "標準檢驗局試驗報告指定編號",
+      "_ast_location": "table:0, row:2, col:0",
+      "_cb_source": null,
+      "_needs_manual": true
+    },
+    "bsmi_lab_code": {
+      "type": "string",
+      "description": "標準檢驗局指定試驗室認可編號",
+      "_ast_location": "table:0, row:0 header",
+      "_cb_source": null,
+      "_needs_manual": true,
+      "examples": ["SL2-IN/VA-T-0157"]
+    },
+    "test_method": {
+      "type": ["string", "null"],
+      "description": "試驗方式",
+      "_ast_location": "table:0, row:9, col:0",
+      "_cb_source": null,
+      "_needs_manual": true
+    },
+    "test_result": {
+      "type": "string",
+      "description": "試驗結果",
+      "_ast_location": "table:0, row:23, col:0",
+      "_cb_source": null,
+      "_needs_manual": true,
+      "enum": ["符合", "不符合", "部分符合"]
+    },
+    "test_pass_items": {
+      "type": ["string", "null"],
+      "description": "測試樣品符合要求項目",
+      "_ast_location": "table:0, row:16, col:0",
+      "_cb_source": null,
+      "_needs_manual": true
+    },
+    "test_fail_items": {
+      "type": ["string", "null"],
+      "description": "測試樣品不符合要求項目",
+      "_ast_location": "table:0, row:17, col:0",
+      "_cb_source": null,
+      "_needs_manual": true
+    },
+    "test_na_items": {
+      "type": ["string", "null"],
+      "description": "測試項目不適用項目",
+      "_ast_location": "table:0, row:15, col:0",
+      "_cb_source": null,
+      "_needs_manual": true
+    },
+    "report_author": {
+      "type": ["string", "null"],
+      "description": "報告製作者",
+      "_ast_location": "table:0, row:25, col:0",
+      "_cb_source": null,
+      "_needs_manual": true
+    },
+    "report_signer": {
+      "type": ["string", "null"],
+      "description": "報告簽署人",
+      "_ast_location": "table:0, row:25, col:3",
+      "_cb_source": null,
+      "_needs_manual": true
+    },
+    "revision_history": {
+      "type": "array",
+      "description": "報告修訂紀錄",
+      "_ast_location": "table:2, row:0, col:0",
+      "_cb_source": null,
+      "_needs_manual": true,
+      "_notes": "新報告通常為空陣列，有修訂時新增項目",
+      "items": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "string",
+            "description": "修訂版本號"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "修訂日期"
+          },
+          "description": {
+            "type": "string",
+            "description": "修訂說明"
+          }
+        }
+      },
+      "default": []
+    },
+    "special_installation": {
+      "type": ["string", "null"],
+      "description": "特殊安裝位置",
+      "_ast_location": "table:3, row:10, col:1",
+      "_cb_source": null,
+      "_needs_manual": true,
+      "examples": ["無特殊安裝", "限制存取區", "戶外位置"]
+    },
+    "protection_device_rating": {
+      "type": ["string", "null"],
+      "description": "保護裝置額定電流",
+      "_ast_location": "table:3, row:6, col:1",
+      "_cb_source": null,
+      "_needs_manual": true,
+      "examples": ["20A 建築", "無保護裝置"]
+    }
+  },
+  "required": [
+    "report_number",
+    "applicant_name",
+    "applicant_address",
+    "factories",
+    "test_standard",
+    "product_name",
+    "main_model",
+    "ratings",
+    "report_issue_date",
+    "testing_lab",
+    "tma",
+    "ip_rating",
+    "equipment_class",
+    "cb_report_number"
+  ]
+}

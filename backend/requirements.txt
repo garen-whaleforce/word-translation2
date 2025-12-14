@@ -1,0 +1,32 @@
+# ==============================================
+# CB Report PDF → CNS Word Report Generator
+# Python Dependencies
+# ==============================================
+
+# Web Framework
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+
+# Configuration
+pydantic==2.6.1
+pydantic-settings==2.1.0
+python-dotenv==1.0.1
+
+# HTTP Client (for Adobe API & Azure OpenAI)
+httpx==0.26.0
+aiofiles==23.2.1
+
+# Azure OpenAI SDK
+openai==1.12.0
+
+# Word Document Processing
+python-docx==1.1.0
+
+# Adobe PDF Services SDK
+# 注意：Adobe 官方 Python SDK 名稱為 pdfservices-sdk
+# 若無法安裝，可改用 REST API 方式（本專案已實作 REST 方式）
+# pdfservices-sdk==4.0.0
+
+# Utilities
+tenacity==8.2.3  # Retry logic
