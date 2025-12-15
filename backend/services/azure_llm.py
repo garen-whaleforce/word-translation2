@@ -815,14 +815,57 @@ def _infer_checkbox_flags(schema: ReportSchema) -> ReportSchema:
         if "CLASS III" in connection_upper or "CLASS 3" in connection_upper:
             flags.is_class_iii = True
 
-    # 移動性
+    # 移動性 - 擴展判斷邏輯
     mobility = (tip.mobility or "").upper()
-    if "PORTABLE" in mobility:
-        flags.is_portable = True
+
+    # 直插式設備 (Direct plug-in)
+    if "DIRECT PLUG" in mobility or "PLUG-IN" in mobility or "PLUG IN" in mobility:
+        flags.is_direct_plugin = True
+
+    # 放置式設備 (Stationary)
     if "STATIONARY" in mobility:
         flags.is_stationary = True
+
+    # 崁入式設備 (Building-in)
+    if "BUILDING" in mobility or "BUILD-IN" in mobility or "BUILT-IN" in mobility:
+        flags.is_building_in = True
+
+    # 壁面/天花板安裝式 (Wall/Ceiling mounted)
+    if "WALL" in mobility or "CEILING" in mobility:
+        flags.is_wall_ceiling = True
+
+    # SRME/機架安裝 (Rack-mounted)
+    if "RACK" in mobility or "SRME" in mobility:
+        flags.is_rack_mounted = True
+
+    # 可攜式 (Portable/Movable/Hand-held/Transportable)
+    if "PORTABLE" in mobility or "MOVABLE" in mobility or "HAND-HELD" in mobility or "HANDHELD" in mobility or "TRANSPORTABLE" in mobility:
+        flags.is_portable = True
+
+    # Fixed
     if "FIXED" in mobility:
         flags.is_fixed = True
+
+    # 將英文 mobility 轉換為中文顯示
+    mobility_zh_parts = []
+    if flags.is_direct_plugin:
+        mobility_zh_parts.append("直插式設備")
+    if flags.is_stationary:
+        mobility_zh_parts.append("放置式設備")
+    if flags.is_building_in:
+        mobility_zh_parts.append("崁入式設備")
+    if flags.is_wall_ceiling:
+        mobility_zh_parts.append("壁面/天花板安裝式")
+    if flags.is_rack_mounted:
+        mobility_zh_parts.append("SRME/機架安裝")
+    if flags.is_portable:
+        mobility_zh_parts.append("可移動式")
+    if flags.is_fixed:
+        mobility_zh_parts.append("固定式")
+
+    # 更新 mobility 為中文（如果有解析到的話）
+    if mobility_zh_parts:
+        tip.mobility = ", ".join(mobility_zh_parts)
 
     schema.checkbox_flags = flags
     return schema

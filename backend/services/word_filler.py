@@ -289,7 +289,23 @@ def build_checkbox_mapping(schema: ReportSchema) -> Dict[str, bool]:
     mapping["Class II"] = flags.is_class_ii
     mapping["Class III"] = flags.is_class_iii
 
-    # 移動性
+    # 移動性 / 設備移動性
+    mapping["direct_plugin"] = flags.is_direct_plugin
+    mapping["is_direct_plugin"] = flags.is_direct_plugin
+    mapping["stationary"] = flags.is_stationary
+    mapping["is_stationary"] = flags.is_stationary
+    mapping["building_in"] = flags.is_building_in
+    mapping["is_building_in"] = flags.is_building_in
+    mapping["wall_ceiling"] = flags.is_wall_ceiling
+    mapping["is_wall_ceiling"] = flags.is_wall_ceiling
+    mapping["rack_mounted"] = flags.is_rack_mounted
+    mapping["is_rack_mounted"] = flags.is_rack_mounted
+    mapping["portable"] = flags.is_portable
+    mapping["is_portable"] = flags.is_portable
+    mapping["fixed"] = flags.is_fixed
+    mapping["is_fixed"] = flags.is_fixed
+
+    # 舊的 key (相容性)
     mapping["Portable"] = flags.is_portable
     mapping["Stationary"] = flags.is_stationary
     mapping["Fixed"] = flags.is_fixed

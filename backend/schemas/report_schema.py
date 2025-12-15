@@ -339,10 +339,14 @@ class CheckboxFlags(BaseModel):
     is_class_ii: bool = Field(default=False, description="Class II")
     is_class_iii: bool = Field(default=False, description="Class III")
 
-    # 移動性
-    is_portable: bool = Field(default=False, description="可攜式")
-    is_stationary: bool = Field(default=False, description="固定式")
-    is_fixed: bool = Field(default=False, description="永久安裝")
+    # 移動性 / 設備移動性
+    is_direct_plugin: bool = Field(default=False, description="直插式設備")
+    is_stationary: bool = Field(default=False, description="放置式設備")
+    is_building_in: bool = Field(default=False, description="崁入式設備")
+    is_wall_ceiling: bool = Field(default=False, description="壁面/天花板安裝式")
+    is_rack_mounted: bool = Field(default=False, description="SRME/機架安裝")
+    is_portable: bool = Field(default=False, description="可攜式/可移動式")
+    is_fixed: bool = Field(default=False, description="固定式/永久安裝")
 
     # 其他常見選項
     is_pluggable_a: bool = Field(default=False, description="Pluggable Type A")
