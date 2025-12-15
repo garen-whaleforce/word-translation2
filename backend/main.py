@@ -357,10 +357,26 @@ UPLOAD_PAGE_HTML = """
                 // 更新進度
                 updateProgress('正在上傳 PDF 檔案...', `檔案大小：${(fileInput.files[0].size / 1024 / 1024).toFixed(2)} MB`);
 
+                // 模擬進度更新（因為後端是同步處理，無法取得即時進度）
+                const progressStages = [
+                    { delay: 2000, msg: '正在解析 PDF 內容...', detail: '使用 PyMuPDF 擷取文字與表格' },
+                    { delay: 5000, msg: '正在進行 AI 翻譯...', detail: '使用 Azure OpenAI 分析報告內容' },
+                    { delay: 15000, msg: 'AI 翻譯處理中...', detail: '這可能需要 1-3 分鐘，請耐心等待' },
+                    { delay: 30000, msg: '仍在處理中...', detail: '大型報告可能需要較長時間' },
+                    { delay: 60000, msg: '即將完成...', detail: '正在合併結果並產生 Word 文件' }
+                ];
+
+                const progressTimers = progressStages.map(stage =>
+                    setTimeout(() => updateProgress(stage.msg, stage.detail), stage.delay)
+                );
+
                 const response = await fetch('/generate-report', {
                     method: 'POST',
                     body: formData
                 });
+
+                // 清除進度計時器
+                progressTimers.forEach(timer => clearTimeout(timer));
 
                 if (!response.ok) {
                     const errorData = await response.json();
