@@ -854,10 +854,15 @@ FORMCHECKBOX_LABEL_MAPPING = {
     "Class II": "is_class_ii",
     "Class III": "is_class_iii",
 
-    # 移動性
-    "直插式設備": "is_pluggable_a",
+    # 移動性 / 設備移動性
+    "直插式設備": "is_direct_plugin",
     "放置式設備": "is_stationary",
-    "崁入式設備": None,
+    "崁入式設備": "is_building_in",
+    "壁面/天花板安裝式": "is_wall_ceiling",
+    "SRME/機架安裝": "is_rack_mounted",
+    "移動式設備": "is_portable",
+    "手持式設備": "is_portable",
+    "可攜式設備": "is_portable",
 
     # 污染等級 - 需要特殊處理
     "PD 1": None,
@@ -912,23 +917,47 @@ def update_formcheckbox_in_xml(
         labels_to_uncheck.add("受指導人員")
 
     # ===================
-    # 移動性
+    # 移動性 / 設備移動性
     # ===================
-    # 模板中的移動性選項
+    # 直插式設備
+    if checkbox_flags.is_direct_plugin:
+        labels_to_check.add("直插式設備")
+    else:
+        labels_to_uncheck.add("直插式設備")
+
+    # 放置式設備
     if checkbox_flags.is_stationary:
         labels_to_check.add("放置式設備")
     else:
         labels_to_uncheck.add("放置式設備")
 
-    if checkbox_flags.is_pluggable_a:
-        labels_to_check.add("直插式設備")
-    else:
-        labels_to_uncheck.add("直插式設備")
-
-    if checkbox_flags.is_fixed:
+    # 崁入式設備
+    if checkbox_flags.is_building_in:
         labels_to_check.add("崁入式設備")
     else:
         labels_to_uncheck.add("崁入式設備")
+
+    # 壁面/天花板安裝式
+    if checkbox_flags.is_wall_ceiling:
+        labels_to_check.add("壁面/天花板安裝式")
+    else:
+        labels_to_uncheck.add("壁面/天花板安裝式")
+
+    # SRME/機架安裝
+    if checkbox_flags.is_rack_mounted:
+        labels_to_check.add("SRME/機架安裝")
+    else:
+        labels_to_uncheck.add("SRME/機架安裝")
+
+    # 可攜式/移動式/手持式
+    if checkbox_flags.is_portable:
+        labels_to_check.add("移動式設備")
+        labels_to_check.add("手持式設備")
+        labels_to_check.add("可攜式設備")
+    else:
+        labels_to_uncheck.add("移動式設備")
+        labels_to_uncheck.add("手持式設備")
+        labels_to_uncheck.add("可攜式設備")
 
     # ===================
     # 根據 test_item_particulars 處理
