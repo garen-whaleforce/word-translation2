@@ -95,7 +95,7 @@ Thumbs.db
 !templates/*.placeholder.docx
 !templates/*.placeholder.v*.docx
 *.pdf
-!templates/*.pdf
+!templates/*.placeholder*.pdf
 *.doc
 
 # 暫存報告輸出
