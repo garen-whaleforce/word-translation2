@@ -8,8 +8,8 @@ CB 報告 → CNS 報告的統一 JSON Schema
 使用 Pydantic models 確保型別安全與資料驗證。
 """
 
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Optional, Any
 from enum import Enum
 
 
@@ -161,6 +161,21 @@ class TestItemParticulars(BaseModel):
 
     # 備註
     additional_info: Optional[str] = Field(default=None, description="其他特性說明")
+
+    # Validators 處理 LLM 回傳的非預期格式
+    @field_validator('pollution_degree', 'ovc', 'ip_code', 'tma', 'mobility',
+                     'installation_type', 'operating_conditions', 'mains_supply',
+                     'rated_voltage', 'rated_frequency', 'rated_current',
+                     'protection_class', 'insulation_type', 'additional_info',
+                     'product_group', mode='before')
+    @classmethod
+    def convert_to_string(cls, v: Any) -> Optional[str]:
+        """將各種類型轉換為字串"""
+        if v is None:
+            return None
+        if isinstance(v, list):
+            return ', '.join(str(item) for item in v)
+        return str(v)
 
 
 class RevisionRecord(BaseModel):
