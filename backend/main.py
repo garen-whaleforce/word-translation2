@@ -367,22 +367,38 @@ UPLOAD_PAGE_HTML = """
                     throw new Error(errorData.detail || '轉換失敗');
                 }
 
-                // 取得統計資訊
+                // 取得統計資訊 (debug: log all headers)
+                console.log('Response headers:');
+                response.headers.forEach((value, key) => console.log(`  ${key}: ${value}`));
+
                 const stats = {
                     totalTime: response.headers.get('X-Processing-Time') || 'N/A',
                     pdfPages: response.headers.get('X-PDF-Pages') || 'N/A',
                     totalTokens: response.headers.get('X-Total-Tokens') || 'N/A',
                     estimatedCost: response.headers.get('X-Estimated-Cost') || 'N/A'
                 };
+                console.log('Stats:', stats);
 
                 // 取得檔案名稱
                 const contentDisposition = response.headers.get('Content-Disposition');
+                console.log('Content-Disposition header:', contentDisposition);
                 let filename = 'CNS_Report.docx';
                 if (contentDisposition) {
-                    const filenameMatch = contentDisposition.match(/filename[^;=\\n]*=(['\"]?)([^'\"\\n]*)\1/);
-                    if (filenameMatch) {
-                        filename = decodeURIComponent(filenameMatch[2]);
+                    // 嘗試多種格式解析
+                    // 格式1: filename="xxx.docx"
+                    let match = contentDisposition.match(/filename="([^"]+)"/);
+                    if (!match) {
+                        // 格式2: filename=xxx.docx
+                        match = contentDisposition.match(/filename=([^;\\s]+)/);
                     }
+                    if (match) {
+                        filename = decodeURIComponent(match[1]);
+                        console.log('Parsed filename:', filename);
+                    } else {
+                        console.log('Could not parse filename from Content-Disposition');
+                    }
+                } else {
+                    console.log('Content-Disposition header is null - CORS expose_headers may not be working');
                 }
 
                 // 下載檔案
