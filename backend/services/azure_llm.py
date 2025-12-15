@@ -19,7 +19,10 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Tuple
 from openai import AzureOpenAI
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log, retry_if_exception_type
+from openai import RateLimitError, APITimeoutError, APIConnectionError
+import logging
+import time
 
 import sys
 import os
@@ -239,9 +242,44 @@ CLAUSE_TRANSLATION_PROMPT = """請將以下 CB 報告條文備註翻譯成簡潔
 # LLM Interaction Functions
 # ==============================================
 
+def _custom_wait_for_rate_limit(retry_state):
+    """
+    自訂等待策略：尊重 Azure 的 Retry-After header
+    """
+    exception = retry_state.outcome.exception()
+    if exception and hasattr(exception, 'response'):
+        response = exception.response
+        if response and hasattr(response, 'headers'):
+            retry_after = response.headers.get('Retry-After') or response.headers.get('x-ratelimit-reset-requests')
+            if retry_after:
+                try:
+                    wait_time = int(retry_after)
+                    logger.warning(f"Azure 要求等待 {wait_time} 秒後重試")
+                    return wait_time
+                except (ValueError, TypeError):
+                    pass
+
+    # 使用 exponential backoff 作為 fallback
+    attempt = retry_state.attempt_number
+    wait_time = min(2 ** attempt, 60)  # 最多等 60 秒
+    logger.warning(f"使用 exponential backoff: 等待 {wait_time} 秒")
+    return wait_time
+
+
+def _log_retry(retry_state):
+    """
+    在重試前記錄日誌
+    """
+    exception = retry_state.outcome.exception()
+    attempt = retry_state.attempt_number
+    logger.warning(f"LLM 呼叫失敗 (第 {attempt} 次嘗試): {type(exception).__name__}: {exception}")
+
+
 @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10)
+    stop=stop_after_attempt(5),  # 增加重試次數以應對 rate limit
+    wait=_custom_wait_for_rate_limit,
+    retry=retry_if_exception_type((RateLimitError, APITimeoutError, APIConnectionError)),
+    before_sleep=_log_retry
 )
 def _call_llm(messages: List[Dict[str, str]], temperature: float = None) -> str:
     """
@@ -842,11 +880,19 @@ async def extract_report_schema_from_adobe_json(
     loop = asyncio.get_event_loop()
 
     # 分批處理以控制並發數
+    batch_count = 0
     for batch_start in range(0, total_chunks, max_concurrent):
         batch_end = min(batch_start + max_concurrent, total_chunks)
         batch_chunks = chunks[batch_start:batch_end]
+        batch_count += 1
 
-        logger.info(f"並發處理 chunks {batch_start + 1}-{batch_end}/{total_chunks}")
+        # 批次間延遲：從第二批開始，每批等待 2 秒以避免 rate limit
+        if batch_count > 1:
+            delay = 2  # 秒
+            logger.info(f"批次間延遲 {delay} 秒以避免 rate limit...")
+            await asyncio.sleep(delay)
+
+        logger.info(f"並發處理 chunks {batch_start + 1}-{batch_end}/{total_chunks} (batch {batch_count})")
 
         # 使用 ThreadPoolExecutor 並發呼叫
         with ThreadPoolExecutor(max_workers=max_concurrent) as executor:
