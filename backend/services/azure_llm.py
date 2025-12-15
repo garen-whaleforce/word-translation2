@@ -64,12 +64,12 @@ class TokenUsageTracker:
 
     def calculate_cost(self) -> float:
         """
-        計算成本（基於 Azure OpenAI gpt-4.1 定價）
-        價格來源：https://www.helicone.ai/llm-cost/provider/azure/model/gpt-4.1
-        gpt-4.1: $2.00 / 1M input tokens, $8.00 / 1M output tokens
+        計算成本（基於 OpenAI gpt-5.1 定價）
+        價格來源：https://platform.openai.com/docs/pricing
+        gpt-5.1: $1.25 / 1M input tokens, $10.00 / 1M output tokens
         """
-        input_cost = (self.total_prompt_tokens / 1_000_000) * 2.00
-        output_cost = (self.total_completion_tokens / 1_000_000) * 8.00
+        input_cost = (self.total_prompt_tokens / 1_000_000) * 1.25
+        output_cost = (self.total_completion_tokens / 1_000_000) * 10.00
         return round(input_cost + output_cost, 4)
 
 # 全域 token tracker（每次請求會重置）
