@@ -14,6 +14,7 @@ Endpoints:
 import os
 import uuid
 import tempfile
+import time
 from datetime import datetime
 from typing import Optional
 from contextlib import asynccontextmanager
@@ -279,7 +280,7 @@ UPLOAD_PAGE_HTML = """
         <strong>注意事項：</strong>
         <ul style="margin: 10px 0 0 20px; padding: 0;">
             <li>請確保 PDF 檔案為有效的 CB Test Report</li>
-            <li>轉換過程可能需要 1-3 分鐘</li>
+            <li>轉換時間依 PDF 頁數而定（約 1-5 分鐘）</li>
             <li>請確保 templates/ 資料夾中有 CNS Word 模板</li>
         </ul>
     </div>
@@ -288,6 +289,28 @@ UPLOAD_PAGE_HTML = """
         const form = document.getElementById('uploadForm');
         const statusDiv = document.getElementById('status');
         const submitBtn = document.getElementById('submitBtn');
+        let startTime = null;
+        let timerInterval = null;
+
+        // 更新計時器顯示
+        function updateTimer() {
+            if (!startTime) return;
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            const timerSpan = document.getElementById('timer');
+            if (timerSpan) {
+                timerSpan.textContent = `已執行 ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+
+        // 更新進度訊息
+        function updateProgress(message, detail = '') {
+            const progressMsg = document.getElementById('progressMsg');
+            const progressDetail = document.getElementById('progressDetail');
+            if (progressMsg) progressMsg.textContent = message;
+            if (progressDetail) progressDetail.textContent = detail;
+        }
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -300,10 +323,21 @@ UPLOAD_PAGE_HTML = """
                 return;
             }
 
-            // 顯示 loading
+            // 顯示 loading 並開始計時
             statusDiv.className = 'status loading';
-            statusDiv.innerHTML = '<span class="spinner"></span>正在處理中，請稍候...';
+            statusDiv.innerHTML = `
+                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <span class="spinner"></span>
+                    <span id="progressMsg">正在準備上傳...</span>
+                </div>
+                <div id="progressDetail" style="font-size: 13px; color: #666; margin-bottom: 5px;"></div>
+                <div id="timer" style="font-size: 12px; color: #999;">已執行 0:00</div>
+            `;
             submitBtn.disabled = true;
+
+            // 開始計時
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
 
             try {
                 const formData = new FormData();
@@ -319,6 +353,9 @@ UPLOAD_PAGE_HTML = """
                 if (reportSigner) formData.append('report_signer', reportSigner);
                 if (seriesModel) formData.append('series_model', seriesModel);
 
+                // 更新進度
+                updateProgress('正在上傳 PDF 檔案...', `檔案大小：${(fileInput.files[0].size / 1024 / 1024).toFixed(2)} MB`);
+
                 const response = await fetch('/generate-report', {
                     method: 'POST',
                     body: formData
@@ -328,6 +365,14 @@ UPLOAD_PAGE_HTML = """
                     const errorData = await response.json();
                     throw new Error(errorData.detail || '轉換失敗');
                 }
+
+                // 取得統計資訊
+                const stats = {
+                    totalTime: response.headers.get('X-Processing-Time') || 'N/A',
+                    pdfPages: response.headers.get('X-PDF-Pages') || 'N/A',
+                    totalTokens: response.headers.get('X-Total-Tokens') || 'N/A',
+                    estimatedCost: response.headers.get('X-Estimated-Cost') || 'N/A'
+                };
 
                 // 取得檔案名稱
                 const contentDisposition = response.headers.get('Content-Disposition');
@@ -350,14 +395,31 @@ UPLOAD_PAGE_HTML = """
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
 
+                // 停止計時
+                clearInterval(timerInterval);
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+
                 statusDiv.className = 'status success';
-                statusDiv.textContent = '✓ 轉換成功！檔案已開始下載。';
+                statusDiv.innerHTML = `
+                    <div style="margin-bottom: 10px;">✓ 轉換成功！檔案已開始下載。</div>
+                    <div style="font-size: 13px; color: #2e7d32; border-top: 1px solid #c8e6c9; padding-top: 10px; margin-top: 10px;">
+                        <div><strong>執行統計：</strong></div>
+                        <div>• 處理時間：${stats.totalTime !== 'N/A' ? stats.totalTime + ' 秒' : minutes + ':' + seconds.toString().padStart(2, '0')}</div>
+                        <div>• PDF 頁數：${stats.pdfPages} 頁</div>
+                        <div>• Token 使用量：${stats.totalTokens !== 'N/A' ? parseInt(stats.totalTokens).toLocaleString() : 'N/A'}</div>
+                        <div>• 預估成本：${stats.estimatedCost !== 'N/A' ? '$' + stats.estimatedCost : 'N/A'}</div>
+                    </div>
+                `;
 
             } catch (error) {
+                clearInterval(timerInterval);
                 statusDiv.className = 'status error';
                 statusDiv.textContent = '✗ 錯誤：' + error.message;
             } finally {
                 submitBtn.disabled = false;
+                startTime = null;
             }
         });
     </script>
@@ -416,6 +478,8 @@ async def generate_report(
     Returns:
         FileResponse: 填好的 Word 檔案
     """
+    start_time = time.time()
+
     logger.info("=" * 50)
     logger.info("收到報告轉換請求")
     logger.info(f"檔案名稱: {file.filename}")
@@ -487,13 +551,14 @@ async def generate_report(
                     )
 
         # Step 2: Azure OpenAI Schema Extraction
+        llm_stats = None
         if use_mock_data:
             logger.info("使用模擬 Schema")
             schema = create_mock_schema()
         else:
             logger.info("呼叫 Azure OpenAI 萃取 Schema...")
             try:
-                schema = await extract_report_schema_from_adobe_json(extract_json)
+                schema, llm_stats = await extract_report_schema_from_adobe_json(extract_json)
             except Exception as e:
                 logger.error(f"Schema 萃取失敗: {e}")
                 raise HTTPException(
@@ -555,15 +620,32 @@ async def generate_report(
             )
 
         # Step 5: 回傳檔案
-        logger.info("轉換完成，回傳檔案")
+        processing_time = round(time.time() - start_time, 2)
+        logger.info(f"轉換完成，總處理時間: {processing_time} 秒")
+
+        # 取得 PDF 頁數
+        pdf_pages = extract_json.get("metadata", {}).get("total_pages", 0)
+
+        # 準備回應 headers
+        response_headers = {
+            "Content-Disposition": f'attachment; filename="{output_filename}"',
+            "X-Processing-Time": str(processing_time),
+            "X-PDF-Pages": str(pdf_pages),
+            "Access-Control-Expose-Headers": "X-Processing-Time, X-PDF-Pages, X-Total-Tokens, X-Estimated-Cost"
+        }
+
+        # 如果有 LLM 統計資訊，加入 headers
+        if llm_stats:
+            response_headers["X-Total-Tokens"] = str(llm_stats.get("total_tokens", 0))
+            response_headers["X-Estimated-Cost"] = str(llm_stats.get("estimated_cost", 0))
+            logger.info(f"  - Token 使用量: {llm_stats.get('total_tokens', 0):,}")
+            logger.info(f"  - 預估成本: ${llm_stats.get('estimated_cost', 0):.4f}")
 
         return FileResponse(
             path=output_path,
             filename=output_filename,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={
-                "Content-Disposition": f'attachment; filename="{output_filename}"'
-            }
+            headers=response_headers
         )
 
     except HTTPException:

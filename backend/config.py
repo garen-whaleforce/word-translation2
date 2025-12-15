@@ -100,6 +100,10 @@ class Settings(BaseSettings):
         default=5,
         description="每次送給 LLM 的頁數"
     )
+    llm_max_concurrent: int = Field(
+        default=5,
+        description="LLM 並發呼叫數量（避免 API rate limit）"
+    )
 
     # ==============================================
     # 實驗室固定資訊

@@ -14,8 +14,10 @@ Azure OpenAI LLM Service
 
 import json
 import re
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from openai import AzureOpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -39,6 +41,39 @@ from schemas.report_schema import (
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# ==============================================
+# Token Usage Tracking
+# ==============================================
+
+class TokenUsageTracker:
+    """追蹤 token 使用量"""
+    def __init__(self):
+        self.total_prompt_tokens = 0
+        self.total_completion_tokens = 0
+        self.call_count = 0
+
+    def add(self, prompt_tokens: int, completion_tokens: int):
+        self.total_prompt_tokens += prompt_tokens
+        self.total_completion_tokens += completion_tokens
+        self.call_count += 1
+
+    @property
+    def total_tokens(self) -> int:
+        return self.total_prompt_tokens + self.total_completion_tokens
+
+    def calculate_cost(self) -> float:
+        """
+        計算成本（基於 Azure OpenAI gpt-4o 定價）
+        價格來源：https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
+        gpt-4o: $5.00 / 1M input tokens, $15.00 / 1M output tokens
+        """
+        input_cost = (self.total_prompt_tokens / 1_000_000) * 5.00
+        output_cost = (self.total_completion_tokens / 1_000_000) * 15.00
+        return round(input_cost + output_cost, 4)
+
+# 全域 token tracker（每次請求會重置）
+_token_tracker = TokenUsageTracker()
 
 
 # ==============================================
@@ -219,6 +254,7 @@ def _call_llm(messages: List[Dict[str, str]], temperature: float = None) -> str:
     Returns:
         LLM 回應的文字內容
     """
+    global _token_tracker
     client = get_azure_client()
 
     temp = temperature if temperature is not None else settings.llm_temperature
@@ -232,6 +268,13 @@ def _call_llm(messages: List[Dict[str, str]], temperature: float = None) -> str:
         max_completion_tokens=settings.llm_max_tokens,
         response_format={"type": "json_object"}  # 強制 JSON 輸出
     )
+
+    # 追蹤 token 使用量
+    if response.usage:
+        _token_tracker.add(
+            prompt_tokens=response.usage.prompt_tokens,
+            completion_tokens=response.usage.completion_tokens
+        )
 
     content = response.choices[0].message.content
     logger.debug(f"LLM 回應長度: {len(content)} 字元")
@@ -747,7 +790,10 @@ def _infer_checkbox_flags(schema: ReportSchema) -> ReportSchema:
 # Main Export Function
 # ==============================================
 
-async def extract_report_schema_from_adobe_json(adobe_json: dict) -> ReportSchema:
+async def extract_report_schema_from_adobe_json(
+    adobe_json: dict,
+    max_concurrent: int = None
+) -> Tuple[ReportSchema, dict]:
     """
     主要函式：將 Adobe Extract 結果轉換為統一 Schema
 
@@ -755,37 +801,77 @@ async def extract_report_schema_from_adobe_json(adobe_json: dict) -> ReportSchem
 
     流程：
     1. 將 Adobe JSON 分成多個 chunks
-    2. 對每個 chunk 呼叫 LLM 萃取資料
+    2. 並發處理多個 chunks（加速處理）
     3. 合併所有 chunk 的結果
     4. 執行繁體中文翻譯
     5. 推斷 checkbox flags
 
     Args:
         adobe_json: Adobe Extract 的結果（來自 adobe_extract.py）
+        max_concurrent: 最大並發數（預設 5，避免 API rate limit）
 
     Returns:
-        完整的 ReportSchema 物件
+        Tuple[ReportSchema, dict]: (完整的 ReportSchema 物件, 統計資訊)
 
     Usage:
         >>> adobe_result = await extract_pdf_to_json(pdf_bytes)
-        >>> schema = await extract_report_schema_from_adobe_json(adobe_result)
+        >>> schema, stats = await extract_report_schema_from_adobe_json(adobe_result)
         >>> print(schema.basic_info.cb_report_no)
+        >>> print(f"Token 使用量: {stats['total_tokens']}")
     """
+    global _token_tracker
+
+    # 重置 token tracker
+    _token_tracker = TokenUsageTracker()
+
+    # 使用設定值或預設值
+    if max_concurrent is None:
+        max_concurrent = settings.llm_max_concurrent
+
     logger.info("開始從 Adobe JSON 萃取 Report Schema...")
+    logger.info(f"並發設定: max_concurrent={max_concurrent}")
 
     # Step 1: 分 chunks
     chunks = _prepare_chunks(adobe_json)
+    total_chunks = len(chunks)
 
-    # Step 2: 處理每個 chunk 並合併結果
+    # Step 2: 並發處理 chunks
     merged_schema = create_empty_schema()
 
-    for i, chunk in enumerate(chunks):
-        try:
-            chunk_schema = _process_chunk(chunk, i, len(chunks))
-            merged_schema = merge_schemas(merged_schema, chunk_schema)
-        except Exception as e:
-            logger.error(f"處理 chunk {i + 1} 時發生錯誤: {e}")
-            continue
+    # 使用 ThreadPoolExecutor 進行並發處理（因為 _call_llm 是同步的）
+    loop = asyncio.get_event_loop()
+
+    # 分批處理以控制並發數
+    for batch_start in range(0, total_chunks, max_concurrent):
+        batch_end = min(batch_start + max_concurrent, total_chunks)
+        batch_chunks = chunks[batch_start:batch_end]
+
+        logger.info(f"並發處理 chunks {batch_start + 1}-{batch_end}/{total_chunks}")
+
+        # 使用 ThreadPoolExecutor 並發呼叫
+        with ThreadPoolExecutor(max_workers=max_concurrent) as executor:
+            futures = []
+            for i, chunk in enumerate(batch_chunks):
+                chunk_index = batch_start + i
+                future = loop.run_in_executor(
+                    executor,
+                    _process_chunk,
+                    chunk,
+                    chunk_index,
+                    total_chunks
+                )
+                futures.append(future)
+
+            # 等待所有 futures 完成
+            results = await asyncio.gather(*futures, return_exceptions=True)
+
+        # 合併結果
+        for i, result in enumerate(results):
+            chunk_index = batch_start + i
+            if isinstance(result, Exception):
+                logger.error(f"處理 chunk {chunk_index + 1} 時發生錯誤: {result}")
+                continue
+            merged_schema = merge_schemas(merged_schema, result)
 
     # Step 3: 推斷 checkbox flags
     merged_schema = _infer_checkbox_flags(merged_schema)
@@ -797,19 +883,31 @@ async def extract_report_schema_from_adobe_json(adobe_json: dict) -> ReportSchem
     merged_schema.extraction_timestamp = datetime.now().isoformat()
     merged_schema.extraction_version = "1.0.0"
 
+    # 準備統計資訊
+    stats = {
+        "total_tokens": _token_tracker.total_tokens,
+        "prompt_tokens": _token_tracker.total_prompt_tokens,
+        "completion_tokens": _token_tracker.total_completion_tokens,
+        "llm_calls": _token_tracker.call_count,
+        "estimated_cost": _token_tracker.calculate_cost(),
+        "total_chunks": total_chunks
+    }
+
     logger.info("Report Schema 萃取完成")
     logger.info(f"  - 基本資料: {merged_schema.basic_info.cb_report_no}")
     logger.info(f"  - 系列型號數: {len(merged_schema.series_models)}")
     logger.info(f"  - 條文判定數: {len(merged_schema.clause_verdicts)}")
+    logger.info(f"  - Token 使用量: {stats['total_tokens']:,}")
+    logger.info(f"  - 預估成本: ${stats['estimated_cost']:.4f}")
 
-    return merged_schema
+    return merged_schema, stats
 
 
 # ==============================================
 # Synchronous Wrapper
 # ==============================================
 
-def extract_report_schema_from_adobe_json_sync(adobe_json: dict) -> ReportSchema:
+def extract_report_schema_from_adobe_json_sync(adobe_json: dict) -> Tuple[ReportSchema, dict]:
     """
     同步版本的 extract_report_schema_from_adobe_json
 
@@ -819,7 +917,7 @@ def extract_report_schema_from_adobe_json_sync(adobe_json: dict) -> ReportSchema
         adobe_json: Adobe Extract 的結果
 
     Returns:
-        完整的 ReportSchema 物件
+        Tuple[ReportSchema, dict]: (完整的 ReportSchema 物件, 統計資訊)
     """
     import asyncio
 
