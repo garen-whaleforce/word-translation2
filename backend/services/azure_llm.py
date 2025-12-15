@@ -307,7 +307,7 @@ def _call_llm(messages: List[Dict[str, str]], temperature: float = None) -> str:
         model=settings.azure_openai_deployment,
         messages=messages,
         temperature=temp,
-        max_tokens=settings.llm_max_tokens,  # 使用 max_tokens 相容舊版 openai 套件
+        max_completion_tokens=settings.llm_max_tokens,
         response_format={"type": "json_object"}  # 強制 JSON 輸出
     )
 
