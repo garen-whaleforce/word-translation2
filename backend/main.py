@@ -249,6 +249,26 @@ UPLOAD_PAGE_HTML = """
                 <input type="file" id="pdfFile" name="file" accept=".pdf" required>
             </div>
 
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;">
+            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">📋 以下為台灣申請者資訊（選填，若不填則使用 CB 報告中的製造商資訊）</p>
+
+            <div class="form-group">
+                <label for="applicantName">申請者名稱（選填）</label>
+                <input type="text" id="applicantName" name="applicant_name" placeholder="台灣申請者/代理商名稱，如：鼎福科技有限公司">
+            </div>
+
+            <div class="form-group">
+                <label for="applicantAddress">申請者地址（選填）</label>
+                <input type="text" id="applicantAddress" name="applicant_address" placeholder="台灣地址，如：新北市中和區民治街19巷8號">
+            </div>
+
+            <div class="form-group">
+                <label for="cnsReportNo">CNS 報告編號（選填）</label>
+                <input type="text" id="cnsReportNo" name="cns_report_no" placeholder="如：AST-B-25120522-000">
+            </div>
+
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;">
+
             <div class="form-group">
                 <label for="reportAuthor">報告撰寫人（選填）</label>
                 <input type="text" id="reportAuthor" name="report_author" placeholder="請輸入報告撰寫人姓名">
@@ -345,7 +365,16 @@ UPLOAD_PAGE_HTML = """
                 formData.append('file', fileInput.files[0]);
                 formData.append('use_mock', useMock ? 'true' : 'false');
 
-                // 新增三個選填欄位
+                // 台灣申請者資訊
+                const applicantName = document.getElementById('applicantName').value.trim();
+                const applicantAddress = document.getElementById('applicantAddress').value.trim();
+                const cnsReportNo = document.getElementById('cnsReportNo').value.trim();
+
+                if (applicantName) formData.append('applicant_name', applicantName);
+                if (applicantAddress) formData.append('applicant_address', applicantAddress);
+                if (cnsReportNo) formData.append('cns_report_no', cnsReportNo);
+
+                // 其他選填欄位
                 const reportAuthor = document.getElementById('reportAuthor').value.trim();
                 const reportSigner = document.getElementById('reportSigner').value.trim();
                 const seriesModel = document.getElementById('seriesModel').value.trim();
@@ -490,6 +519,9 @@ async def health_check():
 async def generate_report(
     file: UploadFile = File(..., description="CB Report PDF 檔案"),
     use_mock: str = Form(default="false", description="是否使用模擬資料"),
+    applicant_name: str = Form(default="", description="台灣申請者名稱"),
+    applicant_address: str = Form(default="", description="台灣申請者地址"),
+    cns_report_no: str = Form(default="", description="CNS 報告編號"),
     report_author: str = Form(default="", description="報告撰寫人"),
     report_signer: str = Form(default="", description="報告簽署人"),
     series_model: str = Form(default="", description="系列型號（逗號分隔）")
@@ -507,6 +539,9 @@ async def generate_report(
     Args:
         file: 上傳的 PDF 檔案
         use_mock: 是否使用模擬資料（用於測試）
+        applicant_name: 台灣申請者名稱（覆蓋 CB 報告中的製造商）
+        applicant_address: 台灣申請者地址
+        cns_report_no: CNS 報告編號
 
     Returns:
         FileResponse: 填好的 Word 檔案
@@ -517,6 +552,9 @@ async def generate_report(
     logger.info("收到報告轉換請求")
     logger.info(f"檔案名稱: {file.filename}")
     logger.info(f"使用模擬: {use_mock}")
+    logger.info(f"台灣申請者: {applicant_name or '(未填，使用 CB 報告資訊)'}")
+    logger.info(f"申請者地址: {applicant_address or '(未填)'}")
+    logger.info(f"CNS 報告編號: {cns_report_no or '(未填)'}")
     logger.info(f"報告撰寫人: {report_author or '(未填)'}")
     logger.info(f"報告簽署人: {report_signer or '(未填)'}")
     logger.info(f"系列型號: {series_model or '(未填)'}")
@@ -636,6 +674,9 @@ async def generate_report(
 
         # 準備前端傳入的額外欄位
         user_inputs = {
+            "applicant_name": applicant_name.strip() if applicant_name else "",
+            "applicant_address": applicant_address.strip() if applicant_address else "",
+            "cns_report_no": cns_report_no.strip() if cns_report_no else "",
             "report_author": report_author.strip() if report_author else "",
             "report_signer": report_signer.strip() if report_signer else "",
             "series_model": series_model.strip() if series_model else ""

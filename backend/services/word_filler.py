@@ -161,8 +161,10 @@ def build_placeholder_mapping(schema: ReportSchema) -> Dict[str, str]:
     mapping["rated_current"] = tip.rated_current or ""
     mapping["protection_class"] = tip.protection_class or ""
     mapping["insulation_type"] = tip.insulation_type or ""
-    mapping["mobility"] = tip.mobility or ""
-    mapping["equipment_mobility"] = tip.mobility or ""  # alias for mobility
+    # 設備移動性：清空文字內容，改用 checkbox 顯示
+    # （checkbox 已在 FORMCHECKBOX 處理邏輯中勾選）
+    mapping["mobility"] = ""
+    mapping["equipment_mobility"] = ""  # alias for mobility
 
     # Classification of use（多選，用逗號分隔）
     mapping["classification_of_use"] = ", ".join(tip.classification_of_use) if tip.classification_of_use else ""
@@ -173,6 +175,10 @@ def build_placeholder_mapping(schema: ReportSchema) -> Dict[str, str]:
     # ===================
     # Series Models
     # ===================
+    # 單一 series_model 欄位（所有型號用逗號分隔）
+    all_models = [m.model for m in schema.series_models if m.model]
+    mapping["series_model"] = ", ".join(all_models) if all_models else ""
+
     for i, model in enumerate(schema.series_models[:MAX_SERIES_MODELS], start=1):
         mapping[f"series_model_{i}"] = model.model or ""
         mapping[f"series_model_{i}_vout"] = model.vout or ""
@@ -565,6 +571,23 @@ def fill_cns_template(
 
     # 加入使用者輸入的欄位（如果有的話）
     if user_inputs:
+        # 台灣申請者資訊（覆蓋 CB 報告中的製造商資訊）
+        if user_inputs.get("applicant_name"):
+            placeholder_mapping["applicant_name"] = user_inputs["applicant_name"]
+            placeholder_mapping["applicant_zh"] = user_inputs["applicant_name"]
+            placeholder_mapping["applicant_en"] = user_inputs["applicant_name"]
+            logger.info(f"使用者輸入 - 申請者名稱: {user_inputs['applicant_name']}")
+        if user_inputs.get("applicant_address"):
+            placeholder_mapping["applicant_address"] = user_inputs["applicant_address"]
+            placeholder_mapping["applicant_address_zh"] = user_inputs["applicant_address"]
+            placeholder_mapping["applicant_address_en"] = user_inputs["applicant_address"]
+            logger.info(f"使用者輸入 - 申請者地址: {user_inputs['applicant_address']}")
+        if user_inputs.get("cns_report_no"):
+            placeholder_mapping["report_no"] = user_inputs["cns_report_no"]
+            placeholder_mapping["cns_report_no"] = user_inputs["cns_report_no"]
+            logger.info(f"使用者輸入 - CNS 報告編號: {user_inputs['cns_report_no']}")
+
+        # 其他欄位
         if user_inputs.get("report_author"):
             placeholder_mapping["report_author"] = user_inputs["report_author"]
             logger.info(f"使用者輸入 - 報告撰寫人: {user_inputs['report_author']}")
