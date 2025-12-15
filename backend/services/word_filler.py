@@ -8,17 +8,21 @@ Word Template Filler Service
 1. 讀取 Word 模板
 2. 尋找並替換 placeholder（{{...}}）
 3. 處理 checkbox（□ → ■）
-4. 填寫表格中的系列型號
-5. 確保不破壞原有格式
+4. 處理 Word FORMCHECKBOX 控制項的勾選狀態
+5. 填寫表格中的系列型號
+6. 確保不破壞原有格式
 
 ⚠️ 重要設計原則：
 - 只修改文字內容（w:t），不新增/刪除段落或表格
 - 處理 Word 將 placeholder 切成多個 run 的情況
 - 保持原有的字體、大小、顏色等格式
+- FORMCHECKBOX 需要直接操作 XML
 """
 
 import re
 import os
+import zipfile
+import shutil
 from typing import Dict, Any, List, Optional, Tuple
 from copy import deepcopy
 from docx import Document
@@ -604,6 +608,17 @@ def fill_cns_template(
     logger.info(f"Word 模板填寫完成，共替換 {total_replacements} 處")
     logger.info(f"輸出檔案: {output_path}")
 
+    # 更新 FORMCHECKBOX 狀態
+    # 由於 python-docx 不支援 FORMCHECKBOX，需要在儲存後另外處理
+    try:
+        update_formcheckbox_in_docx(
+            output_path,
+            schema.checkbox_flags,
+            schema.test_item_particulars
+        )
+    except Exception as e:
+        logger.warning(f"更新 FORMCHECKBOX 時發生錯誤（不影響其他功能）: {e}")
+
 
 # ==============================================
 # Advanced Placeholder Functions
@@ -794,3 +809,311 @@ def test_fill_with_mock_data(template_path: str, output_path: str) -> None:
     schema = create_mock_schema()
     fill_cns_template(schema, template_path, output_path)
     logger.info(f"測試完成，輸出: {output_path}")
+
+
+# ==============================================
+# FORMCHECKBOX XML Processing
+# ==============================================
+
+# FORMCHECKBOX 標籤對應表
+# 格式: { "XML中的標籤文字": "checkbox_flags 中的屬性名" }
+FORMCHECKBOX_LABEL_MAPPING = {
+    # 產品群組
+    "終端產品": None,  # 根據 is_av, is_ict 等判斷
+    "內建元件": None,  # 根據產品類型判斷
+
+    # 使用分類
+    "普通": "is_ordinary",
+    "普通人員": "is_ordinary",
+    "兒童可能出現": None,  # 特殊處理
+    "受指導人員": "is_instructed",
+    "技術人員": "is_skilled",
+
+    # 電源連接
+    "AC mains": None,  # 根據 mains_supply 判斷
+    "DC mains": None,
+
+    # 電源等級
+    "Class I": "is_class_i",
+    "Class II": "is_class_ii",
+    "Class III": "is_class_iii",
+
+    # 移動性
+    "直插式設備": "is_pluggable_a",
+    "放置式設備": "is_stationary",
+    "崁入式設備": None,
+
+    # 污染等級 - 需要特殊處理
+    "PD 1": None,
+    "PD 2": None,
+    "PD 3": None,
+
+    # 電力系統
+    "TN": None,
+    "TT": None,
+}
+
+
+def update_formcheckbox_in_xml(
+    xml_content: str,
+    checkbox_flags: 'CheckboxFlags',
+    test_item_particulars: 'TestItemParticulars'
+) -> str:
+    """
+    更新 Word 文件 XML 中的 FORMCHECKBOX 狀態
+
+    由於 python-docx 不支援操作 FORMCHECKBOX，我們需要直接修改 XML。
+
+    Args:
+        xml_content: document.xml 的內容
+        checkbox_flags: CheckboxFlags 物件
+        test_item_particulars: TestItemParticulars 物件
+
+    Returns:
+        更新後的 XML 內容
+    """
+    # 建立要勾選的標籤集合
+    labels_to_check = set()
+    labels_to_uncheck = set()
+
+    # ===================
+    # 使用分類（根據 checkbox_flags）
+    # ===================
+    # 模板中的標籤是「普通」而不是「普通人員」
+    if checkbox_flags.is_ordinary:
+        labels_to_check.add("普通")
+    else:
+        labels_to_uncheck.add("普通")
+
+    if checkbox_flags.is_skilled:
+        labels_to_check.add("技術人員")
+    else:
+        labels_to_uncheck.add("技術人員")
+
+    if checkbox_flags.is_instructed:
+        labels_to_check.add("受指導人員")
+    else:
+        labels_to_uncheck.add("受指導人員")
+
+    # ===================
+    # 移動性
+    # ===================
+    # 模板中的移動性選項
+    if checkbox_flags.is_stationary:
+        labels_to_check.add("放置式設備")
+    else:
+        labels_to_uncheck.add("放置式設備")
+
+    if checkbox_flags.is_pluggable_a:
+        labels_to_check.add("直插式設備")
+    else:
+        labels_to_uncheck.add("直插式設備")
+
+    if checkbox_flags.is_fixed:
+        labels_to_check.add("崁入式設備")
+    else:
+        labels_to_uncheck.add("崁入式設備")
+
+    # ===================
+    # 根據 test_item_particulars 處理
+    # ===================
+
+    # 產品群組
+    product_group = (test_item_particulars.product_group or "").upper()
+    if "AV" in product_group or "ICT" in product_group or "終端" in product_group:
+        labels_to_check.add("終端產品")
+        labels_to_uncheck.add("內建元件")
+    elif "COMPONENT" in product_group or "元件" in product_group:
+        labels_to_check.add("內建元件")
+        labels_to_uncheck.add("終端產品")
+
+    # 電源類型
+    mains_supply = (test_item_particulars.mains_supply or "").upper()
+    if "AC" in mains_supply:
+        labels_to_check.add("AC mains")
+    else:
+        labels_to_uncheck.add("AC mains")
+    if "DC" in mains_supply:
+        labels_to_check.add("DC mains")
+    else:
+        labels_to_uncheck.add("DC mains")
+    # Not mains connected
+    if "NOT" in mains_supply or "BATTERY" in mains_supply:
+        labels_to_check.add("Not mains connected:")
+    else:
+        labels_to_uncheck.add("Not mains connected:")
+
+    # 污染等級
+    pollution = test_item_particulars.pollution_degree or ""
+    if "1" in pollution:
+        labels_to_check.add("PD 1")
+        labels_to_uncheck.add("PD 2")
+        labels_to_uncheck.add("PD 3")
+    elif "2" in pollution:
+        labels_to_check.add("PD 2")
+        labels_to_uncheck.add("PD 1")
+        labels_to_uncheck.add("PD 3")
+    elif "3" in pollution:
+        labels_to_check.add("PD 3")
+        labels_to_uncheck.add("PD 1")
+        labels_to_uncheck.add("PD 2")
+
+    # 電力系統（通常是 TN）
+    labels_to_check.add("TN")
+    labels_to_uncheck.add("TT")
+    labels_to_uncheck.add("IT -")
+
+    logger.info(f"FORMCHECKBOX - 要勾選的標籤: {labels_to_check}")
+    logger.info(f"FORMCHECKBOX - 要取消勾選的標籤: {labels_to_uncheck}")
+
+    # 處理 XML
+    # 策略：找到每個 FORMCHECKBOX，檢查它後面的標籤，決定是否勾選
+
+    modified_xml = xml_content
+    changes_made = 0
+
+    # 找所有 w:tc（儲存格）區塊
+    # 對於每個儲存格，找其中的 checkbox 和標籤對應關係
+
+    def process_checkbox_cell(cell_xml: str) -> str:
+        """處理單個儲存格中的 checkbox"""
+        nonlocal changes_made
+
+        # 找所有 checkbox 的位置
+        checkbox_pattern = r'(<w:checkBox>)(.*?)(</w:checkBox>)'
+
+        # 找所有文字標籤
+        text_positions = []
+        for m in re.finditer(r'<w:t[^>]*>([^<]+)</w:t>', cell_xml):
+            text = m.group(1).strip()
+            if text and text not in [' ', '\t', '\n']:
+                text_positions.append((m.start(), text))
+
+        # 處理每個 checkbox
+        result = cell_xml
+        offset = 0
+
+        for cb_match in re.finditer(checkbox_pattern, cell_xml, re.DOTALL):
+            cb_start = cb_match.start()
+            cb_inner = cb_match.group(2)
+
+            # 找這個 checkbox 後面最近的標籤
+            label = None
+            for text_pos, text in text_positions:
+                if text_pos > cb_match.end():
+                    label = text
+                    break
+
+            if not label:
+                continue
+
+            # 決定是否勾選
+            should_check = label in labels_to_check
+            should_uncheck = label in labels_to_uncheck
+
+            if not should_check and not should_uncheck:
+                continue
+
+            # 檢查當前狀態
+            is_currently_checked = '<w:checked/>' in cb_inner or '<w:checked w:val="1"/>' in cb_inner
+
+            if should_check and not is_currently_checked:
+                # 需要勾選：添加 <w:checked/>
+                new_inner = cb_inner.rstrip()
+                if not new_inner.endswith('<w:checked/>'):
+                    # 在 </w:checkBox> 前插入 <w:checked/>
+                    new_cb = f'<w:checkBox>{cb_inner}<w:checked/></w:checkBox>'
+                    old_cb = cb_match.group(0)
+                    result = result[:cb_match.start() + offset] + new_cb + result[cb_match.end() + offset:]
+                    offset += len(new_cb) - len(old_cb)
+                    changes_made += 1
+                    logger.debug(f"FORMCHECKBOX - 勾選: {label}")
+
+            elif should_uncheck and is_currently_checked:
+                # 需要取消勾選：移除 <w:checked/>
+                new_inner = re.sub(r'<w:checked[^>]*/>', '', cb_inner)
+                new_cb = f'<w:checkBox>{new_inner}</w:checkBox>'
+                old_cb = cb_match.group(0)
+                result = result[:cb_match.start() + offset] + new_cb + result[cb_match.end() + offset:]
+                offset += len(new_cb) - len(old_cb)
+                changes_made += 1
+                logger.debug(f"FORMCHECKBOX - 取消勾選: {label}")
+
+        return result
+
+    # 找「試驗樣品特性」表格並處理
+    # 這個表格包含大部分需要更新的 checkbox
+    table_match = re.search(r'(<w:tbl>.*?試驗樣品特性.*?</w:tbl>)', modified_xml, re.DOTALL)
+    if table_match:
+        table_xml = table_match.group(1)
+        new_table_xml = process_checkbox_cell(table_xml)
+        modified_xml = modified_xml[:table_match.start()] + new_table_xml + modified_xml[table_match.end():]
+
+    logger.info(f"FORMCHECKBOX - 共修改 {changes_made} 個 checkbox")
+
+    return modified_xml
+
+
+def update_formcheckbox_in_docx(
+    docx_path: str,
+    checkbox_flags: 'CheckboxFlags',
+    test_item_particulars: 'TestItemParticulars'
+) -> None:
+    """
+    更新 .docx 檔案中的 FORMCHECKBOX 狀態
+
+    .docx 檔案實際上是一個 ZIP 壓縮檔，包含多個 XML 檔案。
+    此函式會：
+    1. 解壓縮 .docx
+    2. 修改 word/document.xml 中的 checkbox 狀態
+    3. 重新壓縮為 .docx
+
+    Args:
+        docx_path: .docx 檔案路徑
+        checkbox_flags: CheckboxFlags 物件
+        test_item_particulars: TestItemParticulars 物件
+    """
+    import tempfile
+
+    logger.info(f"開始更新 FORMCHECKBOX: {docx_path}")
+
+    # 建立暫存目錄
+    temp_dir = tempfile.mkdtemp()
+
+    try:
+        # 解壓縮 .docx
+        with zipfile.ZipFile(docx_path, 'r') as zip_ref:
+            zip_ref.extractall(temp_dir)
+
+        # 讀取 document.xml
+        doc_xml_path = os.path.join(temp_dir, 'word', 'document.xml')
+        with open(doc_xml_path, 'r', encoding='utf-8') as f:
+            xml_content = f.read()
+
+        # 更新 checkbox
+        new_xml_content = update_formcheckbox_in_xml(
+            xml_content, checkbox_flags, test_item_particulars
+        )
+
+        # 寫回 document.xml
+        with open(doc_xml_path, 'w', encoding='utf-8') as f:
+            f.write(new_xml_content)
+
+        # 重新壓縮為 .docx
+        # 注意：需要保持原始的壓縮結構
+        temp_docx = docx_path + '.tmp'
+        with zipfile.ZipFile(temp_docx, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for root, dirs, files in os.walk(temp_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, temp_dir)
+                    zipf.write(file_path, arcname)
+
+        # 替換原檔案
+        shutil.move(temp_docx, docx_path)
+
+        logger.info(f"FORMCHECKBOX 更新完成: {docx_path}")
+
+    finally:
+        # 清理暫存目錄
+        shutil.rmtree(temp_dir, ignore_errors=True)
