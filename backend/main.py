@@ -87,6 +87,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition", "X-Processing-Time", "X-PDF-Pages", "X-Total-Tokens", "X-Estimated-Cost"],
 )
 
 
@@ -631,7 +632,7 @@ async def generate_report(
             "Content-Disposition": f'attachment; filename="{output_filename}"',
             "X-Processing-Time": str(processing_time),
             "X-PDF-Pages": str(pdf_pages),
-            "Access-Control-Expose-Headers": "X-Processing-Time, X-PDF-Pages, X-Total-Tokens, X-Estimated-Cost"
+            "Access-Control-Expose-Headers": "Content-Disposition, X-Processing-Time, X-PDF-Pages, X-Total-Tokens, X-Estimated-Cost"
         }
 
         # 如果有 LLM 統計資訊，加入 headers

@@ -15,6 +15,7 @@ Azure OpenAI LLM Service
 import json
 import re
 import asyncio
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Tuple
@@ -50,16 +51,18 @@ logger = get_logger(__name__)
 # ==============================================
 
 class TokenUsageTracker:
-    """追蹤 token 使用量"""
+    """追蹤 token 使用量（thread-safe）"""
     def __init__(self):
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.call_count = 0
+        self._lock = threading.Lock()
 
     def add(self, prompt_tokens: int, completion_tokens: int):
-        self.total_prompt_tokens += prompt_tokens
-        self.total_completion_tokens += completion_tokens
-        self.call_count += 1
+        with self._lock:
+            self.total_prompt_tokens += prompt_tokens
+            self.total_completion_tokens += completion_tokens
+            self.call_count += 1
 
     @property
     def total_tokens(self) -> int:
@@ -77,6 +80,7 @@ class TokenUsageTracker:
 
 # 全域 token tracker（每次請求會重置）
 _token_tracker = TokenUsageTracker()
+_token_tracker_lock = threading.Lock()
 
 
 # ==============================================
@@ -859,8 +863,10 @@ async def extract_report_schema_from_adobe_json(
     """
     global _token_tracker
 
-    # 重置 token tracker
-    _token_tracker = TokenUsageTracker()
+    # 重置 token tracker（使用 lock 確保 thread-safe）
+    with _token_tracker_lock:
+        _token_tracker = TokenUsageTracker()
+        logger.info("Token tracker 已重置")
 
     # 使用設定值或預設值
     if max_concurrent is None:
@@ -929,15 +935,17 @@ async def extract_report_schema_from_adobe_json(
     merged_schema.extraction_timestamp = datetime.now().isoformat()
     merged_schema.extraction_version = "1.0.0"
 
-    # 準備統計資訊
-    stats = {
-        "total_tokens": _token_tracker.total_tokens,
-        "prompt_tokens": _token_tracker.total_prompt_tokens,
-        "completion_tokens": _token_tracker.total_completion_tokens,
-        "llm_calls": _token_tracker.call_count,
-        "estimated_cost": _token_tracker.calculate_cost(),
-        "total_chunks": total_chunks
-    }
+    # 準備統計資訊（使用 lock 確保讀取一致性）
+    with _token_tracker_lock:
+        stats = {
+            "total_tokens": _token_tracker.total_tokens,
+            "prompt_tokens": _token_tracker.total_prompt_tokens,
+            "completion_tokens": _token_tracker.total_completion_tokens,
+            "llm_calls": _token_tracker.call_count,
+            "estimated_cost": _token_tracker.calculate_cost(),
+            "total_chunks": total_chunks
+        }
+        logger.debug(f"Token tracker 狀態: prompt={_token_tracker.total_prompt_tokens}, completion={_token_tracker.total_completion_tokens}, calls={_token_tracker.call_count}")
 
     logger.info("Report Schema 萃取完成")
     logger.info(f"  - 基本資料: {merged_schema.basic_info.cb_report_no}")
