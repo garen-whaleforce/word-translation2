@@ -974,22 +974,25 @@ def fill_cns_template(
     checkbox_mapping = build_checkbox_mapping(schema)
 
     # 加入使用者輸入的欄位（如果有的話）
-    if user_inputs:
-        # 台灣申請者資訊（覆蓋 CB 報告中的製造商資訊）
-        if user_inputs.get("applicant_name"):
-            placeholder_mapping["applicant_name"] = user_inputs["applicant_name"]
-            placeholder_mapping["applicant_zh"] = user_inputs["applicant_name"]
-            placeholder_mapping["applicant_en"] = user_inputs["applicant_name"]
-            logger.info(f"使用者輸入 - 申請者名稱: {user_inputs['applicant_name']}")
-        if user_inputs.get("applicant_address"):
-            placeholder_mapping["applicant_address"] = user_inputs["applicant_address"]
-            placeholder_mapping["applicant_address_zh"] = user_inputs["applicant_address"]
-            placeholder_mapping["applicant_address_en"] = user_inputs["applicant_address"]
-            logger.info(f"使用者輸入 - 申請者地址: {user_inputs['applicant_address']}")
-        if user_inputs.get("cns_report_no"):
-            placeholder_mapping["report_no"] = user_inputs["cns_report_no"]
-            placeholder_mapping["cns_report_no"] = user_inputs["cns_report_no"]
-            logger.info(f"使用者輸入 - CNS 報告編號: {user_inputs['cns_report_no']}")
+    if user_inputs is not None:
+        # 台灣申請者資訊（覆蓋 CB 報告中的製造商資訊；若前端留空則填空字串）
+        if "applicant_name" in user_inputs:
+            val = user_inputs.get("applicant_name") or ""
+            placeholder_mapping["applicant_name"] = val
+            placeholder_mapping["applicant_zh"] = val
+            placeholder_mapping["applicant_en"] = val
+            logger.info(f"使用者輸入 - 申請者名稱: {val}")
+        if "applicant_address" in user_inputs:
+            val = user_inputs.get("applicant_address") or ""
+            placeholder_mapping["applicant_address"] = val
+            placeholder_mapping["applicant_address_zh"] = val
+            placeholder_mapping["applicant_address_en"] = val
+            logger.info(f"使用者輸入 - 申請者地址: {val}")
+        if "cns_report_no" in user_inputs:
+            val = user_inputs.get("cns_report_no") or ""
+            placeholder_mapping["report_no"] = val
+            placeholder_mapping["cns_report_no"] = val
+            logger.info(f"使用者輸入 - CNS 報告編號: {val}")
 
         # 其他欄位
         if user_inputs.get("report_author"):
