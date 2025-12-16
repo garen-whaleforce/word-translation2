@@ -60,6 +60,7 @@ class BasicInfo(BaseModel):
     """
     # 報告資訊
     cb_report_no: str = Field(default="", description="CB 報告編號")
+    ast_report_no: Optional[str] = Field(default=None, description="AST 報告編號（用於頁首/頁尾）")
     cns_report_no: Optional[str] = Field(default=None, description="CNS 報告編號（由我方填寫）")
     bsmi_designated_report_no: Optional[str] = Field(default=None, description="BSMI 指定報告編號，如 SL2INT0157250509")
     standard: str = Field(default="", description="適用標準，例如 IEC 62368-1:2018")
@@ -91,6 +92,7 @@ class BasicInfo(BaseModel):
     ratings_input: str = Field(default="", description="輸入額定值，例如 100-240Vac, 50/60Hz, 2A")
     ratings_output: str = Field(default="", description="輸出額定值，例如 12Vdc, 5A")
     ratings_power: Optional[str] = Field(default=None, description="功率額定值")
+    rated_output_lines: Optional[List[str]] = Field(default=None, description="輸出額定值（多行列表，用於區塊填寫）")
 
     # 報告日期
     issue_date: Optional[str] = Field(default=None, description="報告發行日期")
@@ -115,6 +117,10 @@ class BasicInfo(BaseModel):
     sample_not_conforms: Optional[str] = Field(default=None, description="不符合項目說明")
     not_applicable_items: Optional[str] = Field(default=None, description="不適用項目說明")
     special_installation: Optional[str] = Field(default=None, description="特殊安裝要求")
+    national_differences_summary: Optional[str] = Field(default=None, description="國別差異摘要")
+    model_differences: Optional[str] = Field(default=None, description="型號差異說明")
+    cb_report_note: Optional[str] = Field(default=None, description="CB 報告備註/引用來源")
+    attachment_list: Optional[List[str]] = Field(default=None, description="附件清單")
 
 
 class TestItemParticulars(BaseModel):
@@ -258,6 +264,12 @@ class EnergySourceRow(BaseModel):
     remarks: Optional[str] = Field(default=None, description="備註")
 
 
+class FactoryInfo(BaseModel):
+    """工廠資訊"""
+    name: str = Field(default="", description="工廠名稱")
+    address: str = Field(default="", description="工廠地址")
+
+
 class KeyTables(BaseModel):
     """
     關鍵測試表格
@@ -274,6 +286,15 @@ class KeyTables(BaseModel):
     energy_sources: List[EnergySourceRow] = Field(
         default_factory=list,
         description="能量來源分類表"
+    )
+    # 原樣表格（若解析成列/行）
+    input_test_raw: Optional[List[List[Any]]] = Field(
+        default=None,
+        description="輸入試驗原始表格資料（行列表）"
+    )
+    abnormal_fault_raw: Optional[List[List[Any]]] = Field(
+        default=None,
+        description="異常/故障試驗原始表格資料（行列表）"
     )
 
     # 可擴充其他表格類型
@@ -399,6 +420,18 @@ class ReportSchema(BaseModel):
         description="關鍵測試表格"
     )
 
+    # 工廠清單
+    factories: List[FactoryInfo] = Field(
+        default_factory=list,
+        description="工廠清單（名稱與地址）"
+    )
+
+    # 附件/附件描述
+    attachments: Optional[List[str]] = Field(
+        default=None,
+        description="附件清單"
+    )
+
     # 繁中翻譯
     translations: Translations = Field(
         default_factory=Translations,
@@ -521,6 +554,10 @@ def merge_schemas(base: ReportSchema, update: ReportSchema) -> ReportSchema:
     merged.key_tables.input_tests.extend(update.key_tables.input_tests)
     merged.key_tables.temperature_rise.extend(update.key_tables.temperature_rise)
     merged.key_tables.energy_sources.extend(update.key_tables.energy_sources)
+    if update.key_tables.input_test_raw:
+        merged.key_tables.input_test_raw = update.key_tables.input_test_raw
+    if update.key_tables.abnormal_fault_raw:
+        merged.key_tables.abnormal_fault_raw = update.key_tables.abnormal_fault_raw
 
     # 合併 translations
     base_trans = merged.translations.model_dump()
@@ -537,5 +574,21 @@ def merge_schemas(base: ReportSchema, update: ReportSchema) -> ReportSchema:
         if value:  # 如果 update 中為 True
             base_flags[key] = True
     merged.checkbox_flags = CheckboxFlags(**base_flags)
+
+    # 合併工廠清單（按 name/address 去重）
+    if update.factories:
+        existing = {(f.name, f.address) for f in merged.factories}
+        for f in update.factories:
+            key = (f.name, f.address)
+            if key not in existing:
+                merged.factories.append(f)
+                existing.add(key)
+
+    # 合併附件
+    if update.attachments:
+        if merged.attachments:
+            merged.attachments = list(dict.fromkeys(merged.attachments + update.attachments))
+        else:
+            merged.attachments = update.attachments
 
     return merged

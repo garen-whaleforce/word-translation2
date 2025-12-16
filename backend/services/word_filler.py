@@ -21,8 +21,10 @@ Word Template Filler Service
 
 import re
 import os
+import glob
 import zipfile
 import shutil
+import tempfile
 from typing import Dict, Any, List, Optional, Tuple
 from copy import deepcopy
 from docx import Document
@@ -46,6 +48,7 @@ logger = get_logger(__name__)
 
 # Placeholder 正則表達式
 PLACEHOLDER_PATTERN = re.compile(r'\{\{([^}]+)\}\}')
+PLACEHOLDER_REGEX_RAW = re.compile(r'\{\{.*?\}\}')
 
 # Checkbox 符號
 CHECKBOX_UNCHECKED = "□"
@@ -75,8 +78,11 @@ def build_placeholder_mapping(schema: ReportSchema) -> Dict[str, str]:
     # Basic Info
     # ===================
     bi = schema.basic_info
+    ast_report_no = bi.ast_report_no or bi.cb_report_no or ""
     mapping["report_no"] = bi.cb_report_no or ""
     mapping["cb_report_no"] = bi.cb_report_no or ""
+    mapping["ast_report_no"] = ast_report_no
+    mapping["header_report_no"] = ast_report_no
     mapping["cns_report_no"] = bi.cns_report_no or ""
     mapping["standard"] = bi.standard or ""
     mapping["standard_version"] = bi.standard_version or ""
@@ -101,6 +107,10 @@ def build_placeholder_mapping(schema: ReportSchema) -> Dict[str, str]:
     mapping["rated_input"] = bi.ratings_input or ""  # alias for ratings_input
     mapping["ratings_output"] = bi.ratings_output or ""
     mapping["rated_output"] = bi.ratings_output or ""  # alias for ratings_output
+    if bi.rated_output_lines:
+        mapping["rated_output_block"] = "\n".join(bi.rated_output_lines)
+    else:
+        mapping["rated_output_block"] = bi.ratings_output or ""
     mapping["ratings_power"] = bi.ratings_power or ""
 
     mapping["issue_date"] = bi.issue_date or ""
@@ -121,6 +131,9 @@ def build_placeholder_mapping(schema: ReportSchema) -> Dict[str, str]:
     mapping["eut_mass_kg"] = bi.equipment_mass or ""  # alias for equipment_mass
     mapping["protection_rating"] = bi.protection_rating or ""
     mapping["protective_device_rated_current"] = bi.protection_rating or ""  # alias
+    mapping["national_differences_summary"] = bi.national_differences_summary or ""
+    mapping["model_differences_block"] = bi.model_differences or ""
+    mapping["cb_report_note"] = bi.cb_report_note or ""
 
     # ===================
     # Translations (繁中)
@@ -140,6 +153,16 @@ def build_placeholder_mapping(schema: ReportSchema) -> Dict[str, str]:
     mapping["factory_address_1"] = trans.factory_address_1 or ""
     mapping["factory_name_2"] = trans.factory_name_2 or ""
     mapping["factory_address_2"] = trans.factory_address_2 or ""
+    # 工廠清單（動態列表）
+    if schema.factories:
+        factory_lines = []
+        for f in schema.factories:
+            parts = [p for p in [f.name, f.address] if p]
+            if parts:
+                factory_lines.append(" / ".join(parts))
+        mapping["factory_list"] = "; ".join(factory_lines)
+    else:
+        mapping["factory_list"] = ""
 
     # ===================
     # Test Item Particulars
@@ -178,6 +201,7 @@ def build_placeholder_mapping(schema: ReportSchema) -> Dict[str, str]:
     # 單一 series_model 欄位（所有型號用逗號分隔）
     all_models = [m.model for m in schema.series_models if m.model]
     mapping["series_model"] = ", ".join(all_models) if all_models else ""
+    mapping["model_list"] = mapping["series_model"]
 
     for i, model in enumerate(schema.series_models[:MAX_SERIES_MODELS], start=1):
         mapping[f"series_model_{i}"] = model.model or ""
@@ -236,6 +260,12 @@ def build_placeholder_mapping(schema: ReportSchema) -> Dict[str, str]:
         mapping[f"rev{i}_date"] = ""
         mapping[f"rev{i}_report_no"] = ""
         mapping[f"rev{i}_desc"] = ""
+
+    # 附件
+    if schema.attachments:
+        mapping["attachment_list"] = "; ".join(schema.attachments)
+    else:
+        mapping["attachment_list"] = ""
 
     # ===================
     # Lab Fixed Info (實驗室固定資訊)
@@ -522,6 +552,288 @@ def process_table(table: Table, mapping: Dict[str, str], checkbox_mapping: Dict[
 
 
 # ==============================================
+# Advanced Block/Table Helpers
+# ==============================================
+
+def replace_text_globally(doc: Document, pattern: str, replacement: str) -> int:
+    """
+    以簡單字串替換整份文件（含表格、頁首頁尾）中的文字。
+    適用於固定值改成動態值（例如舊案編號、型號）。
+    """
+    count = 0
+    def _replace_in_paragraph(paragraph: Paragraph) -> int:
+        nonlocal count
+        if not pattern or pattern not in paragraph.text:
+            return 0
+        for run in paragraph.runs:
+            if pattern in run.text:
+                run.text = run.text.replace(pattern, replacement)
+        count += 1
+        return 1
+
+    def _replace_in_container(paragraphs):
+        for p in paragraphs:
+            _replace_in_paragraph(p)
+
+    _replace_in_container(doc.paragraphs)
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                _replace_in_container(cell.paragraphs)
+    for section in doc.sections:
+        _replace_in_container(section.header.paragraphs)
+        _replace_in_container(section.footer.paragraphs)
+        for table in section.header.tables:
+            for cell in table._cells:
+                _replace_in_container(cell.paragraphs)
+        for table in section.footer.tables:
+            for cell in table._cells:
+                _replace_in_container(cell.paragraphs)
+    return count
+
+
+def find_table_by_text_or_placeholder(doc: Document, keyword: str, placeholder: Optional[str] = None) -> Optional[Table]:
+    """
+    在文件與頁首頁尾搜尋含有關鍵字或 placeholder 的表格。
+    keyword: 用於舊模板中的中文標記
+    placeholder: 用於新模板中的 {{...}} 標記
+    """
+    def _search(tables):
+        for table in tables:
+            for cell in table._cells:
+                txt = cell.text
+                if (keyword and keyword in txt) or (placeholder and placeholder in txt):
+                    return table
+        return None
+
+    table = _search(doc.tables)
+    if table:
+        return table
+    for section in doc.sections:
+        table = _search(section.header.tables)
+        if table:
+            return table
+        table = _search(section.footer.tables)
+        if table:
+            return table
+    return None
+
+
+def fill_table_with_rows(table: Table, headers: List[str], rows: List[List[Any]]) -> None:
+    """
+    以指定的表頭與資料行覆寫現有表格內容。
+    - 會新增或刪除行以符合 rows 數量
+    - 會覆寫前 len(headers) 個欄位文字，其餘清空
+    """
+    if table is None:
+        return
+
+    required_rows = 1 + len(rows)
+    # 新增行至足夠
+    while len(table.rows) < required_rows:
+        table.add_row()
+    # 多餘行刪除
+    while len(table.rows) > required_rows:
+        tbl = table._tbl
+        tbl.remove(table.rows[-1]._tr)
+
+    # 表頭
+    for idx, cell in enumerate(table.rows[0].cells):
+        cell.text = str(headers[idx]) if idx < len(headers) else ""
+    # 資料行
+    for r_idx, row in enumerate(rows, start=1):
+        cells = table.rows[r_idx].cells
+        for c_idx, val in enumerate(cells):
+            cells[c_idx].text = str(row[c_idx]) if c_idx < len(row) and row[c_idx] is not None else ""
+
+
+def render_factory_list(doc: Document, factories: List['FactoryInfo']) -> None:
+    """將工廠清單填入封面表格的生產廠場欄位（若存在）。"""
+    if not factories:
+        return
+    summary = "; ".join(" / ".join(filter(None, [f.name, f.address])) for f in factories if f.name or f.address)
+    for table in doc.tables:
+        for row in table.rows:
+            for idx, cell in enumerate(row.cells):
+                if "生產廠場" in cell.text and idx + 1 < len(row.cells):
+                    row.cells[idx + 1].text = summary
+
+
+def insert_table_at_placeholder(doc: Document, placeholder: str, headers: List[str], rows: List[List[Any]]) -> bool:
+    """
+    尋找包含 placeholder 的段落或表格儲存格，插入表格並移除 placeholder。
+    回傳是否插入成功。
+    """
+    def _create_table():
+        tbl = doc.add_table(rows=len(rows) + 1, cols=len(headers))
+        for ci, cell in enumerate(tbl.rows[0].cells):
+            cell.text = str(headers[ci]) if ci < len(headers) else ""
+        for ri, data in enumerate(rows, start=1):
+            for ci, cell in enumerate(tbl.rows[ri].cells):
+                cell.text = str(data[ci]) if ci < len(data) else ""
+        return tbl
+
+    # 段落尋找
+    for paragraph in doc.paragraphs:
+        if placeholder in paragraph.text:
+            _create_table()
+            paragraph.text = ""
+            return True
+
+    # 表格儲存格尋找
+    for table in doc.tables:
+        for cell in table._cells:
+            for paragraph in cell.paragraphs:
+                if placeholder in paragraph.text:
+                    _create_table()
+                    paragraph.text = ""
+                    return True
+    return False
+
+
+def render_factory_table_block(doc: Document, factories: List['FactoryInfo']) -> None:
+    if not factories:
+        return
+    headers = ["Factory name", "Address"]
+    rows = [[f.name, f.address] for f in factories]
+    if not insert_table_at_placeholder(doc, "{{#BLOCK:FACTORY_TABLE_BLOCK}}", headers, rows):
+        para = doc.add_paragraph("工廠清單")
+        tbl = doc.add_table(rows=len(rows) + 1, cols=2)
+        tbl.rows[0].cells[0].text = headers[0]
+        tbl.rows[0].cells[1].text = headers[1]
+        for ri, data in enumerate(rows, start=1):
+            tbl.rows[ri].cells[0].text = str(data[0])
+            tbl.rows[ri].cells[1].text = str(data[1])
+    replace_text_globally(doc, "{{#BLOCK:FACTORY_TABLE_BLOCK}}", "")
+
+
+def render_input_test_table(doc: Document, key_tables: 'KeyTables') -> None:
+    """用 key_tables.input_test_raw 或 input_tests 填寫 B.2.5 表格。"""
+    table = find_table_by_text_or_placeholder(doc, "表格: 輸入試驗", "{{#BLOCK:TABLE_B2_5_INPUT_TEST}}")
+    # 資料來源優先 raw
+    rows: List[List[Any]] = []
+    if key_tables.input_test_raw:
+        headers = key_tables.input_test_raw[0]
+        rows = key_tables.input_test_raw[1:]
+    elif key_tables.input_tests:
+        headers = ["Voltage", "Frequency", "Current", "Power", "Condition", "Remarks"]
+        for row in key_tables.input_tests:
+            rows.append([
+                row.voltage or "",
+                row.frequency or "",
+                row.current or "",
+                row.power or "",
+                row.test_condition or "",
+                row.remarks or ""
+        ])
+    else:
+        return
+    if rows and table:
+        fill_table_with_rows(table, headers, rows)
+    elif rows:
+        insert_table_at_placeholder(doc, "{{#BLOCK:TABLE_B2_5_INPUT_TEST}}", headers, rows)
+
+
+def render_abnormal_fault_table(doc: Document, key_tables: 'KeyTables') -> None:
+    """用 key_tables.abnormal_fault_raw 填寫 B.3/B.4 表格。"""
+    table = find_table_by_text_or_placeholder(doc, "異常操作和故障條件試驗", "{{#BLOCK:TABLE_B3_B4_ABNORMAL_FAULT}}")
+    if not key_tables.abnormal_fault_raw:
+        return
+    headers = key_tables.abnormal_fault_raw[0]
+    rows = key_tables.abnormal_fault_raw[1:]
+    if table:
+        fill_table_with_rows(table, headers, rows)
+    else:
+        insert_table_at_placeholder(doc, "{{#BLOCK:TABLE_B3_B4_ABNORMAL_FAULT}}", headers, rows)
+    # 若關鍵值因合併儲存格而未顯示，將所有行的合併文字附加在首格
+    if table:
+        table_text = " ".join(c.text for c in table._cells)
+        combined = "\n".join(" ; ".join(str(v) for v in r if v) for r in rows)
+        if any((str(v) and str(v) not in table_text) for r in rows for v in r):
+            cell = table.rows[0].cells[0]
+            cell.text = (cell.text + "\n" + combined).strip() if cell.text else combined
+
+
+def render_attachment_block(doc: Document, attachments: Optional[List[str]]) -> None:
+    if not attachments:
+        return
+    placeholder = "{{#BLOCK:ATTACHMENT_LIST_BLOCK}}"
+
+    def _write_list(paragraph):
+        paragraph.text = ""
+        for item in attachments:
+            run = paragraph.add_run(f"• {item}\n")
+        return True
+
+    for paragraph in doc.paragraphs:
+        if placeholder in paragraph.text:
+            _write_list(paragraph)
+            return
+    for table in doc.tables:
+        for cell in table._cells:
+            for paragraph in cell.paragraphs:
+                if placeholder in paragraph.text:
+                    _write_list(paragraph)
+                    return
+
+
+def replace_placeholder_in_cell_text(cell: _Cell, key: str, value: str) -> int:
+    count = 0
+    for paragraph in cell.paragraphs:
+        count += replace_placeholder_in_paragraph(paragraph, {key: value})
+    return count
+
+
+def replace_placeholders_in_textboxes(docx_path: str, mapping: Dict[str, str]) -> None:
+    """
+    直接修改 docx XML 以處理 python-docx 無法觸及的 textbox（w:txbxContent）。
+    僅做簡單的字串替換，不改變結構。
+    """
+    if not mapping:
+        return
+
+    temp_dir = tempfile.mkdtemp()
+    try:
+        with zipfile.ZipFile(docx_path, 'r') as zip_ref:
+            zip_ref.extractall(temp_dir)
+
+        word_dir = os.path.join(temp_dir, "word")
+        targets = [os.path.join(word_dir, "document.xml")]
+        targets += glob.glob(os.path.join(word_dir, "header*.xml"))
+        targets += glob.glob(os.path.join(word_dir, "footer*.xml"))
+
+        changed = False
+        for xml_file in targets:
+            if not os.path.exists(xml_file):
+                continue
+            with open(xml_file, "r", encoding="utf-8") as f:
+                xml_text = f.read()
+            original = xml_text
+            for k, v in mapping.items():
+                placeholder = f"{{{{{k}}}}}"
+                if placeholder in xml_text:
+                    xml_text = xml_text.replace(placeholder, v or "")
+            if xml_text != original:
+                with open(xml_file, "w", encoding="utf-8") as f:
+                    f.write(xml_text)
+                changed = True
+
+        if changed:
+            temp_docx = docx_path + ".txbx"
+            with zipfile.ZipFile(temp_docx, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for root, _, files in os.walk(temp_dir):
+                    for file in files:
+                        path = os.path.join(root, file)
+                        arcname = os.path.relpath(path, temp_dir)
+                        zipf.write(path, arcname)
+            shutil.move(temp_docx, docx_path)
+    except Exception as e:
+        logger.warning(f"Textbox placeholder replacement failed: {e}")
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+# ==============================================
 # Main Fill Function
 # ==============================================
 
@@ -636,6 +948,32 @@ def fill_cns_template(
         for table in footer.tables:
             total_replacements += process_table(table, placeholder_mapping, checkbox_mapping)
 
+    # 補充：工廠清單、動態表格、型號/編號替換
+    render_factory_list(doc, schema.factories)
+    render_factory_table_block(doc, schema.factories)
+    render_input_test_table(doc, schema.key_tables)
+    render_abnormal_fault_table(doc, schema.key_tables)
+    render_attachment_block(doc, schema.attachments)
+
+    main_model_for_cleanup = placeholder_mapping.get("main_model") or placeholder_mapping.get("model_main") or ""
+    if main_model_for_cleanup:
+        replace_text_globally(doc, "MC-601", main_model_for_cleanup)
+    if placeholder_mapping.get("header_report_no"):
+        replace_text_globally(doc, "AST-B-25120522-000", placeholder_mapping["header_report_no"])
+    # 清理已知 placeholder / 舊案號
+    replace_text_globally(doc, "{{TABLE_B2_5_INPUT_TEST}}", "")
+    replace_text_globally(doc, "{{TABLE_B3_B4_ABNORMAL_FAULT}}", "")
+    replace_text_globally(doc, "{{#BLOCK:TABLE_B2_5_INPUT_TEST}}", "")
+    replace_text_globally(doc, "{{#BLOCK:TABLE_B3_B4_ABNORMAL_FAULT}}", "")
+    replace_text_globally(doc, "{{report_author}}", "")
+    replace_text_globally(doc, "{{report_signer}}", "")
+    replace_text_globally(doc, "{{FACTORY_TABLE_BLOCK}}", "")
+    replace_text_globally(doc, "{{ATTACHMENT_LIST_BLOCK}}", "")
+    replace_text_globally(doc, "{{#BLOCK:FACTORY_TABLE_BLOCK}}", "")
+    replace_text_globally(doc, "{{#BLOCK:ATTACHMENT_LIST_BLOCK}}", "")
+    replace_text_globally(doc, "2025112058855971-00", "")
+    replace_text_globally(doc, "DK-174052-UL", "")
+
     # 確保輸出目錄存在
     output_dir = os.path.dirname(output_path)
     if output_dir and not os.path.exists(output_dir):
@@ -649,6 +987,14 @@ def fill_cns_template(
 
     # 更新 FORMCHECKBOX 狀態
     # 由於 python-docx 不支援 FORMCHECKBOX，需要在儲存後另外處理
+    # 先處理 textbox 內殘留的 placeholder（python-docx 無法觸及）
+    try:
+        replace_placeholders_in_textboxes(output_path, placeholder_mapping)
+    except Exception as e:
+        logger.warning(f"Textbox 佔位符替換失敗: {e}")
+
+    # 更新 FORMCHECKBOX 狀態
+    # 由於 python-docx 不支援 FORMCHECKBOX，需要在儲存後另外處理
     try:
         update_formcheckbox_in_docx(
             output_path,
@@ -657,6 +1003,30 @@ def fill_cns_template(
         )
     except Exception as e:
         logger.warning(f"更新 FORMCHECKBOX 時發生錯誤（不影響其他功能）: {e}")
+
+    # 基本檢核
+    try:
+        expected_models = {schema.basic_info.model_main} if schema.basic_info.model_main else set()
+        expected_models.update([m.model for m in schema.series_models if m.model])
+        expected_report_nos = set(filter(None, [
+            placeholder_mapping.get("header_report_no"),
+            placeholder_mapping.get("report_no"),
+            placeholder_mapping.get("cb_report_no"),
+            placeholder_mapping.get("cns_report_no"),
+            schema.basic_info.ast_report_no,
+            schema.basic_info.cb_report_no,
+            schema.basic_info.cns_report_no
+        ]))
+        post_render_validate(
+            output_path,
+            {
+                "ast_report_no": placeholder_mapping.get("header_report_no"),
+                "models": list(expected_models),
+                "report_numbers": list(expected_report_nos)
+            }
+        )
+    except Exception as e:
+        logger.warning(f"產出檢核失敗: {e}")
 
 
 # ==============================================
@@ -705,6 +1075,86 @@ def find_unreplaced_placeholders(doc_path: str) -> List[str]:
             unreplaced.update(matches)
 
     return sorted(list(unreplaced))
+
+
+def extract_all_text(doc: Document) -> str:
+    """彙整文件內所有文字（段落、表格、頁首頁尾）。"""
+    texts: List[str] = []
+    texts.extend(p.text for p in doc.paragraphs if p.text)
+    for table in doc.tables:
+        for cell in table._cells:
+            if cell.text:
+                texts.append(cell.text)
+    for section in doc.sections:
+        texts.extend(p.text for p in section.header.paragraphs if p.text)
+        texts.extend(p.text for p in section.footer.paragraphs if p.text)
+        for tbl in section.header.tables:
+            texts.extend(c.text for c in tbl._cells if c.text)
+        for tbl in section.footer.tables:
+            texts.extend(c.text for c in tbl._cells if c.text)
+    return "\n".join(texts)
+
+
+def post_render_validate(doc_path: str, expected: Dict[str, Any]) -> None:
+    """
+    基本產出檢核：
+    - 禁止舊案型號/報告號
+    - 頁首/頁尾報告編號一致
+    - 危險 placeholder 殘留
+    """
+    doc = Document(doc_path)
+    text = extract_all_text(doc)
+    errors: List[str] = []
+
+    if re.search(r"DK-\d+|2025112058855971-00|25120522-000", text):
+        errors.append("Legacy CB/AST report number residual detected")
+    if PLACEHOLDER_REGEX_RAW.search(text):
+        errors.append("Unreplaced placeholder detected")
+
+    expected_report_no = expected.get("ast_report_no") or expected.get("report_no")
+    allow_reports = set(expected.get("report_numbers") or [])
+    if expected_report_no:
+        allow_reports.add(expected_report_no)
+
+    if expected_report_no:
+        header_ok = False
+        footer_checked = False
+        for section in doc.sections:
+            for p in section.header.paragraphs:
+                if expected_report_no in (p.text or ""):
+                    header_ok = True
+            for p in section.footer.paragraphs:
+                if p.text:
+                    footer_checked = footer_checked or ("AST-B" in p.text or expected_report_no in p.text)
+                    if expected_report_no in p.text:
+                        footer_checked = True
+        if not header_ok:
+            errors.append("Header report number mismatch")
+        if footer_checked:
+            footer_ok = any(expected_report_no in (p.text or "") for section in doc.sections for p in section.footer.paragraphs)
+            if not footer_ok:
+                errors.append("Footer report number mismatch")
+
+    # 型號檢核：若提供 expected models，則限制文中出現的型號需在集合內
+    expected_models = set(expected.get("models") or [])
+    if expected_models:
+        for m in re.finditer(r"\b[A-Z0-9][A-Z0-9-]{2,}\b", text):
+            token = m.group(0)
+            if len(token) < 4:
+                continue
+            window = text[max(0, m.start()-10):m.end()+10]
+            if any(k in window for k in ["型號","Model","系列","model","MODEL"]) and token not in expected_models:
+                errors.append(f"Unexpected model detected: {token}")
+
+    # AST 報告號碼檢核：出現的 AST-B-* 需在 allowlist
+    if allow_reports:
+        ast_numbers = set(re.findall(r"AST-B-[0-9A-Za-z_-]+", text))
+        unexpected_ast = {n for n in ast_numbers if n not in allow_reports}
+        if unexpected_ast:
+            errors.append(f"Unexpected AST report numbers: {', '.join(sorted(unexpected_ast))}")
+
+    if errors:
+        raise ValueError("Post render validation failed: " + "; ".join(errors))
 
 
 def list_all_placeholders(template_path: str) -> List[str]:
