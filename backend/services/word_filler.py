@@ -925,6 +925,73 @@ def replace_placeholders_in_textboxes(docx_path: str, mapping: Dict[str, str]) -
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
+def cleanup_empty_value_sentences(docx_path: str) -> None:
+    """
+    清理空值造成的斷句問題，例如「...為，」「...為 , 」等。
+    直接修改 docx XML 來處理這些不完整的句子結構。
+    """
+    # 需要清理的空值斷句模式（在 XML 中可能被 tag 分開，所以用簡單模式）
+    cleanup_patterns = [
+        ("為，", "，"),           # 「...為，」→「...，」
+        ("為 , ", " , "),         # 「...為 , 」→「... , 」
+        ("為,", ","),             # 「...為,」→「...,」
+        ("為、", "、"),           # 「...為、」→「...、」
+        ("為。", "。"),           # 「...為。」→「...。」
+        ("為:", ":"),             # 「...為:」→「...:」
+        ("為：", "："),           # 「...為：」→「...：」
+        ("is ，", "，"),          # 英文殘留
+        ("is ，", "，"),
+        ("are ，", "，"),
+        # 處理 </w:t> 標籤中間的情況（XML 內文字可能被分割）
+    ]
+
+    temp_dir = tempfile.mkdtemp()
+    try:
+        with zipfile.ZipFile(docx_path, 'r') as zip_ref:
+            zip_ref.extractall(temp_dir)
+
+        word_dir = os.path.join(temp_dir, "word")
+        targets = [os.path.join(word_dir, "document.xml")]
+        targets += glob.glob(os.path.join(word_dir, "header*.xml"))
+        targets += glob.glob(os.path.join(word_dir, "footer*.xml"))
+
+        changed = False
+        total_cleanups = 0
+
+        for xml_file in targets:
+            if not os.path.exists(xml_file):
+                continue
+            with open(xml_file, "r", encoding="utf-8") as f:
+                xml_text = f.read()
+            original = xml_text
+
+            for pattern, replacement in cleanup_patterns:
+                if pattern in xml_text:
+                    count = xml_text.count(pattern)
+                    xml_text = xml_text.replace(pattern, replacement)
+                    total_cleanups += count
+
+            if xml_text != original:
+                with open(xml_file, "w", encoding="utf-8") as f:
+                    f.write(xml_text)
+                changed = True
+
+        if changed:
+            logger.info(f"清理空值斷句: 共修正 {total_cleanups} 處")
+            temp_docx = docx_path + ".cleanup"
+            with zipfile.ZipFile(temp_docx, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for root, _, files in os.walk(temp_dir):
+                    for file in files:
+                        path = os.path.join(root, file)
+                        arcname = os.path.relpath(path, temp_dir)
+                        zipf.write(path, arcname)
+            shutil.move(temp_docx, docx_path)
+    except Exception as e:
+        logger.warning(f"清理空值斷句失敗: {e}")
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
 # ==============================================
 # Main Fill Function
 # ==============================================
@@ -1100,6 +1167,12 @@ def fill_cns_template(
         )
     except Exception as e:
         logger.warning(f"更新 FORMCHECKBOX 時發生錯誤（不影響其他功能）: {e}")
+
+    # 清理空值造成的斷句問題（如「為，」）
+    try:
+        cleanup_empty_value_sentences(output_path)
+    except Exception as e:
+        logger.warning(f"清理空值斷句失敗: {e}")
 
     # 基本檢核
     try:
