@@ -19,9 +19,12 @@ from datetime import datetime
 from typing import Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form, BackgroundTasks
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+import json
+import base64
 
 # 確保可以 import backend 內的模組
 import sys
@@ -377,68 +380,86 @@ UPLOAD_PAGE_HTML = """
                 // 更新進度
                 updateProgress('正在上傳 PDF 檔案...', `檔案大小：${(fileInput.files[0].size / 1024 / 1024).toFixed(2)} MB`);
 
-                // 模擬進度更新（因為後端是同步處理，無法取得即時進度）
-                const progressStages = [
-                    { delay: 2000, msg: '正在解析 PDF 內容...', detail: '使用 PyMuPDF 擷取文字與表格' },
-                    { delay: 5000, msg: '正在進行 AI 翻譯...', detail: '使用 Azure OpenAI 分析報告內容' },
-                    { delay: 15000, msg: 'AI 翻譯處理中...', detail: '這可能需要 1-3 分鐘，請耐心等待' },
-                    { delay: 30000, msg: '仍在處理中...', detail: '大型報告可能需要較長時間' },
-                    { delay: 60000, msg: '即將完成...', detail: '正在合併結果並產生 Word 文件' }
-                ];
-
-                const progressTimers = progressStages.map(stage =>
-                    setTimeout(() => updateProgress(stage.msg, stage.detail), stage.delay)
-                );
-
+                // 使用 SSE 串流接收進度和結果
                 const response = await fetch('/generate-report', {
                     method: 'POST',
                     body: formData
                 });
 
-                // 清除進度計時器
-                progressTimers.forEach(timer => clearTimeout(timer));
-
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || '轉換失敗');
+                    const errorText = await response.text();
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        throw new Error(errorData.detail || '轉換失敗');
+                    } catch {
+                        throw new Error(errorText || '轉換失敗');
+                    }
                 }
 
-                // 取得統計資訊 (debug: log all headers)
-                console.log('Response headers:');
-                response.headers.forEach((value, key) => console.log(`  ${key}: ${value}`));
-
-                const stats = {
-                    totalTime: response.headers.get('X-Processing-Time') || 'N/A',
-                    pdfPages: response.headers.get('X-PDF-Pages') || 'N/A',
-                    totalTokens: response.headers.get('X-Total-Tokens') || 'N/A',
-                    estimatedCost: response.headers.get('X-Estimated-Cost') || 'N/A'
-                };
-                console.log('Stats:', stats);
-
-                // 取得檔案名稱
-                const contentDisposition = response.headers.get('Content-Disposition');
-                console.log('Content-Disposition header:', contentDisposition);
+                // 讀取 SSE 串流
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let stats = {};
                 let filename = 'CNS_Report.docx';
-                if (contentDisposition) {
-                    // 嘗試多種格式解析
-                    // 格式1: filename="xxx.docx"
-                    let match = contentDisposition.match(/filename="([^"]+)"/);
-                    if (!match) {
-                        // 格式2: filename=xxx.docx
-                        match = contentDisposition.match(/filename=([^;\\s]+)/);
+                let fileBase64 = null;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+
+                    // 解析 SSE 事件
+                    const lines = buffer.split('\\n');
+                    buffer = lines.pop() || '';  // 保留未完成的行
+
+                    let eventType = null;
+                    let eventData = null;
+
+                    for (const line of lines) {
+                        if (line.startsWith('event: ')) {
+                            eventType = line.slice(7).trim();
+                        } else if (line.startsWith('data: ')) {
+                            try {
+                                eventData = JSON.parse(line.slice(6));
+                            } catch (e) {
+                                console.error('Failed to parse SSE data:', line);
+                                continue;
+                            }
+
+                            // 處理事件
+                            if (eventType === 'progress' && eventData) {
+                                updateProgress(eventData.message, `進度：${eventData.percent}%`);
+                            } else if (eventType === 'error' && eventData) {
+                                throw new Error(eventData.message);
+                            } else if (eventType === 'complete' && eventData) {
+                                filename = eventData.filename;
+                                fileBase64 = eventData.file_base64;
+                                stats = eventData.stats || {};
+                            }
+
+                            eventType = null;
+                            eventData = null;
+                        }
                     }
-                    if (match) {
-                        filename = decodeURIComponent(match[1]);
-                        console.log('Parsed filename:', filename);
-                    } else {
-                        console.log('Could not parse filename from Content-Disposition');
-                    }
-                } else {
-                    console.log('Content-Disposition header is null - CORS expose_headers may not be working');
                 }
 
-                // 下載檔案
-                const blob = await response.blob();
+                // 檢查是否收到檔案
+                if (!fileBase64) {
+                    throw new Error('未收到檔案資料');
+                }
+
+                // 將 Base64 轉換為 Blob 並下載
+                const binaryString = atob(fileBase64);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                const blob = new Blob([bytes], {
+                    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                });
+
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -450,19 +471,16 @@ UPLOAD_PAGE_HTML = """
 
                 // 停止計時
                 clearInterval(timerInterval);
-                const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                const minutes = Math.floor(elapsed / 60);
-                const seconds = elapsed % 60;
 
                 statusDiv.className = 'status success';
                 statusDiv.innerHTML = `
                     <div style="margin-bottom: 10px;">✓ 轉換成功！檔案已開始下載。</div>
                     <div style="font-size: 13px; color: #2e7d32; border-top: 1px solid #c8e6c9; padding-top: 10px; margin-top: 10px;">
                         <div><strong>執行統計：</strong></div>
-                        <div>• 處理時間：${stats.totalTime !== 'N/A' ? stats.totalTime + ' 秒' : minutes + ':' + seconds.toString().padStart(2, '0')}</div>
-                        <div>• PDF 頁數：${stats.pdfPages} 頁</div>
-                        <div>• Token 使用量：${stats.totalTokens !== 'N/A' ? parseInt(stats.totalTokens).toLocaleString() : 'N/A'}</div>
-                        <div>• 預估成本：${stats.estimatedCost !== 'N/A' ? '$' + stats.estimatedCost : 'N/A'}</div>
+                        <div>• 處理時間：${stats.processing_time || 'N/A'} 秒</div>
+                        <div>• PDF 頁數：${stats.pdf_pages || 'N/A'} 頁</div>
+                        <div>• Token 使用量：${stats.total_tokens ? stats.total_tokens.toLocaleString() : 'N/A'}</div>
+                        <div>• 預估成本：${stats.estimated_cost ? '$' + stats.estimated_cost.toFixed(4) : 'N/A'}</div>
                     </div>
                 `;
 
@@ -518,28 +536,24 @@ async def generate_report(
 ):
     """
     主要 API：將 CB PDF 轉換為 CNS Word 報告
+    使用 Server-Sent Events (SSE) 串流回傳進度，避免長時間請求超時
 
     流程：
     1. 讀取上傳的 PDF 檔案
     2. 呼叫 Adobe PDF Extract API 萃取內容
     3. 呼叫 Azure OpenAI 將內容轉換為統一 Schema
     4. 使用 Schema 填寫 CNS Word 模板
-    5. 回傳填好的 Word 檔案
-
-    Args:
-        file: 上傳的 PDF 檔案
-        applicant_name: 台灣申請者名稱（覆蓋 CB 報告中的製造商）
-        applicant_address: 台灣申請者地址
-        cns_report_no: CNS 報告編號
+    5. 回傳填好的 Word 檔案（Base64 編碼）
 
     Returns:
-        FileResponse: 填好的 Word 檔案
+        StreamingResponse: SSE 串流，最後包含 Base64 編碼的 Word 檔案
     """
     start_time = time.time()
+    pdf_filename = file.filename
 
     logger.info("=" * 50)
     logger.info("收到報告轉換請求")
-    logger.info(f"檔案名稱: {file.filename}")
+    logger.info(f"檔案名稱: {pdf_filename}")
     logger.info(f"台灣申請者: {applicant_name or '(未填，使用 CB 報告資訊)'}")
     logger.info(f"申請者地址: {applicant_address or '(未填)'}")
     logger.info(f"CNS 報告編號: {cns_report_no or '(未填)'}")
@@ -549,7 +563,7 @@ async def generate_report(
     logger.info("=" * 50)
 
     # 驗證檔案類型
-    if not file.filename.lower().endswith('.pdf'):
+    if not pdf_filename.lower().endswith('.pdf'):
         raise HTTPException(
             status_code=400,
             detail="請上傳 PDF 檔案"
@@ -574,139 +588,143 @@ async def generate_report(
         logger.error(f"讀取 PDF 失敗: {e}")
         raise HTTPException(status_code=400, detail=f"讀取 PDF 失敗: {str(e)}")
 
-    try:
-        # Step 1: PDF Extract（根據設定選擇 PyMuPDF 或 Adobe）
-        extractor = settings.pdf_extractor.lower()
-        logger.info(f"使用 PDF 擷取引擎: {extractor}")
+    # 使用 SSE 串流回傳進度
+    async def generate_stream():
+        """SSE 串流生成器"""
+        nonlocal pdf_bytes, pdf_filename, applicant_name, applicant_address
+        nonlocal cns_report_no, report_author, report_signer, series_model, start_time
 
-        if extractor == "pymupdf":
-            # 使用免費的 PyMuPDF
-            logger.info("呼叫 PyMuPDF 擷取 PDF...")
-            try:
-                extract_json = await pymupdf_extract_pdf(pdf_bytes)
-            except PyMuPDFExtractError as e:
-                logger.error(f"PyMuPDF Extract 失敗: {e}")
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"PDF 解析失敗: {str(e)}"
-                )
-        else:
-            # 使用 Adobe PDF Extract API
-            logger.info("呼叫 Adobe PDF Extract API...")
-            try:
-                extract_json = await adobe_extract_pdf(pdf_bytes)
-            except AdobeExtractError as e:
-                logger.error(f"Adobe Extract 失敗: {e}")
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"PDF 解析失敗: {str(e)}"
-                )
-
-        # Step 2: Azure OpenAI Schema Extraction
-        llm_stats = None
-        logger.info("呼叫 Azure OpenAI 萃取 Schema...")
-        try:
-            schema, llm_stats = await extract_report_schema_from_adobe_json(extract_json)
-        except Exception as e:
-            logger.error(f"Schema 萃取失敗: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"資料萃取失敗: {str(e)}"
-            )
-
-        # 設定來源檔名
-        schema.source_filename = file.filename
-
-        # Step 3: 尋找 Word 模板
-        template_dir = os.path.join(os.path.dirname(__file__), "..", settings.template_dir)
-        template_files = [
-            f for f in os.listdir(template_dir)
-            if f.endswith('.docx') and not f.startswith('~')
-        ]
-
-        if not template_files:
-            raise HTTPException(
-                status_code=500,
-                detail="找不到 CNS 報告模板，請在 templates/ 資料夾放置 .docx 模板"
-            )
-
-        # 優先使用 placeholder 版本的模板
-        placeholder_templates = [f for f in template_files if '.placeholder.' in f]
-        if placeholder_templates:
-            template_path = os.path.join(template_dir, placeholder_templates[0])
-        else:
-            template_path = os.path.join(template_dir, template_files[0])
-        logger.info(f"使用模板: {template_path}")
-
-        # Step 4: 填寫 Word 模板
-        # 產生輸出檔案名稱 - 使用上傳的 PDF 檔名
-        # 例如：上傳 DYS830.pdf -> AST-B-DYS830.docx
-        pdf_basename = os.path.splitext(file.filename)[0]  # 移除 .pdf 副檔名
-        # 清理檔名，只保留安全字元
-        safe_basename = "".join(c if c.isalnum() or c in "-_" else "_" for c in pdf_basename)
-        output_filename = f"AST-B-{safe_basename}.docx"
-        output_path = os.path.join(settings.temp_dir, output_filename)
-
-        logger.info(f"填寫 Word 模板，輸出: {output_path}")
-
-        # 準備前端傳入的額外欄位
-        user_inputs = {
-            "applicant_name": applicant_name.strip() if applicant_name else "",
-            "applicant_address": applicant_address.strip() if applicant_address else "",
-            "cns_report_no": cns_report_no.strip() if cns_report_no else "",
-            "report_author": report_author.strip() if report_author else "",
-            "report_signer": report_signer.strip() if report_signer else "",
-            "series_model": series_model.strip() if series_model else ""
-        }
+        def send_event(event_type: str, data: dict):
+            """發送 SSE 事件"""
+            return f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
         try:
-            fill_cns_template(schema, template_path, output_path, user_inputs=user_inputs)
-        except FileNotFoundError as e:
-            raise HTTPException(status_code=500, detail=str(e))
+            yield send_event("progress", {"stage": "pdf_extract", "message": "正在解析 PDF 內容...", "percent": 10})
+
+            # Step 1: PDF Extract
+            extractor = settings.pdf_extractor.lower()
+            logger.info(f"使用 PDF 擷取引擎: {extractor}")
+
+            if extractor == "pymupdf":
+                logger.info("呼叫 PyMuPDF 擷取 PDF...")
+                try:
+                    extract_json = await pymupdf_extract_pdf(pdf_bytes)
+                except PyMuPDFExtractError as e:
+                    logger.error(f"PyMuPDF Extract 失敗: {e}")
+                    yield send_event("error", {"message": f"PDF 解析失敗: {str(e)}"})
+                    return
+            else:
+                logger.info("呼叫 Adobe PDF Extract API...")
+                try:
+                    extract_json = await adobe_extract_pdf(pdf_bytes)
+                except AdobeExtractError as e:
+                    logger.error(f"Adobe Extract 失敗: {e}")
+                    yield send_event("error", {"message": f"PDF 解析失敗: {str(e)}"})
+                    return
+
+            pdf_pages = extract_json.get("metadata", {}).get("total_pages", 0)
+            yield send_event("progress", {"stage": "llm_start", "message": f"PDF 解析完成（{pdf_pages} 頁），正在進行 AI 翻譯...", "percent": 25})
+
+            # Step 2: Azure OpenAI Schema Extraction（這是最耗時的步驟）
+            # 每 10 秒發送一次心跳，保持連線
+            llm_stats = None
+            llm_task = asyncio.create_task(extract_report_schema_from_adobe_json(extract_json))
+
+            heartbeat_count = 0
+            while not llm_task.done():
+                await asyncio.sleep(10)
+                heartbeat_count += 1
+                progress_percent = min(25 + heartbeat_count * 5, 85)
+                yield send_event("progress", {
+                    "stage": "llm_processing",
+                    "message": f"AI 翻譯處理中...（已執行 {heartbeat_count * 10} 秒）",
+                    "percent": progress_percent
+                })
+
+            try:
+                schema, llm_stats = await llm_task
+            except Exception as e:
+                logger.error(f"Schema 萃取失敗: {e}")
+                yield send_event("error", {"message": f"資料萃取失敗: {str(e)}"})
+                return
+
+            yield send_event("progress", {"stage": "template", "message": "AI 翻譯完成，正在產生 Word 文件...", "percent": 90})
+
+            # 設定來源檔名
+            schema.source_filename = pdf_filename
+
+            # Step 3: 尋找 Word 模板
+            template_dir = os.path.join(os.path.dirname(__file__), "..", settings.template_dir)
+            template_files = [
+                f for f in os.listdir(template_dir)
+                if f.endswith('.docx') and not f.startswith('~')
+            ]
+
+            if not template_files:
+                yield send_event("error", {"message": "找不到 CNS 報告模板"})
+                return
+
+            placeholder_templates = [f for f in template_files if '.placeholder.' in f]
+            if placeholder_templates:
+                template_path = os.path.join(template_dir, placeholder_templates[0])
+            else:
+                template_path = os.path.join(template_dir, template_files[0])
+
+            # Step 4: 填寫 Word 模板
+            pdf_basename = os.path.splitext(pdf_filename)[0]
+            safe_basename = "".join(c if c.isalnum() or c in "-_" else "_" for c in pdf_basename)
+            output_filename = f"AST-B-{safe_basename}.docx"
+            output_path = os.path.join(settings.temp_dir, output_filename)
+
+            user_inputs = {
+                "applicant_name": applicant_name.strip() if applicant_name else "",
+                "applicant_address": applicant_address.strip() if applicant_address else "",
+                "cns_report_no": cns_report_no.strip() if cns_report_no else "",
+                "report_author": report_author.strip() if report_author else "",
+                "report_signer": report_signer.strip() if report_signer else "",
+                "series_model": series_model.strip() if series_model else ""
+            }
+
+            try:
+                fill_cns_template(schema, template_path, output_path, user_inputs=user_inputs)
+            except Exception as e:
+                logger.error(f"填寫模板失敗: {e}")
+                yield send_event("error", {"message": f"填寫模板失敗: {str(e)}"})
+                return
+
+            # Step 5: 讀取檔案並以 Base64 編碼回傳
+            with open(output_path, "rb") as f:
+                file_content = f.read()
+            file_base64 = base64.b64encode(file_content).decode("utf-8")
+
+            processing_time = round(time.time() - start_time, 2)
+            logger.info(f"轉換完成，總處理時間: {processing_time} 秒")
+
+            # 發送完成事件，包含檔案資料
+            yield send_event("complete", {
+                "filename": output_filename,
+                "file_base64": file_base64,
+                "stats": {
+                    "processing_time": processing_time,
+                    "pdf_pages": pdf_pages,
+                    "total_tokens": llm_stats.get("total_tokens", 0) if llm_stats else 0,
+                    "estimated_cost": llm_stats.get("estimated_cost", 0) if llm_stats else 0
+                }
+            })
+
         except Exception as e:
-            logger.error(f"填寫模板失敗: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"填寫模板失敗: {str(e)}"
-            )
+            logger.error(f"串流處理錯誤: {e}", exc_info=True)
+            yield send_event("error", {"message": f"處理過程發生錯誤: {str(e)}"})
 
-        # Step 5: 回傳檔案
-        processing_time = round(time.time() - start_time, 2)
-        logger.info(f"轉換完成，總處理時間: {processing_time} 秒")
-
-        # 取得 PDF 頁數
-        pdf_pages = extract_json.get("metadata", {}).get("total_pages", 0)
-
-        # 準備回應 headers
-        response_headers = {
-            "Content-Disposition": f'attachment; filename="{output_filename}"',
-            "X-Processing-Time": str(processing_time),
-            "X-PDF-Pages": str(pdf_pages),
-            "Access-Control-Expose-Headers": "Content-Disposition, X-Processing-Time, X-PDF-Pages, X-Total-Tokens, X-Estimated-Cost"
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # 禁用 Nginx 緩衝
         }
-
-        # 如果有 LLM 統計資訊，加入 headers
-        if llm_stats:
-            response_headers["X-Total-Tokens"] = str(llm_stats.get("total_tokens", 0))
-            response_headers["X-Estimated-Cost"] = str(llm_stats.get("estimated_cost", 0))
-            logger.info(f"  - Token 使用量: {llm_stats.get('total_tokens', 0):,}")
-            logger.info(f"  - 預估成本: ${llm_stats.get('estimated_cost', 0):.4f}")
-
-        return FileResponse(
-            path=output_path,
-            filename=output_filename,
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers=response_headers
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"未預期的錯誤: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"處理過程發生錯誤: {str(e)}"
-        )
+    )
 
 
 @app.get("/api/schema-sample")
