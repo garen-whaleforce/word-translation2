@@ -253,7 +253,7 @@ UPLOAD_PAGE_HTML = """
             </div>
 
             <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;">
-            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">📋 以下為台灣申請者資訊（選填，若不填則使用 CB 報告中的製造商資訊）</p>
+            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">📋 以下為台灣申請者資訊（選填，不填則空白）</p>
 
             <div class="form-group">
                 <label for="applicantName">申請者名稱（選填）</label>
