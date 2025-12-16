@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import settings
 from utils.logger import get_logger, setup_logging
-from services.adobe_extract import extract_pdf_to_json as adobe_extract_pdf, create_mock_extract_result, AdobeExtractError
+from services.adobe_extract import extract_pdf_to_json as adobe_extract_pdf, AdobeExtractError
 from services.pymupdf_extract import extract_pdf_to_json as pymupdf_extract_pdf, PyMuPDFExtractError
 from services.azure_llm import extract_report_schema_from_adobe_json, create_mock_schema
 from services.word_filler import fill_cns_template
@@ -284,13 +284,6 @@ UPLOAD_PAGE_HTML = """
                 <input type="text" id="seriesModel" name="series_model" placeholder="多個型號請用逗號分隔，如：MC-601, MC-602">
             </div>
 
-            <div class="form-group checkbox-group">
-                <label>
-                    <input type="checkbox" id="useMock" name="use_mock">
-                    使用模擬資料（測試用，不會呼叫 Adobe/Azure API）
-                </label>
-            </div>
-
             <button type="submit" id="submitBtn">開始轉換</button>
         </form>
 
@@ -337,7 +330,6 @@ UPLOAD_PAGE_HTML = """
             e.preventDefault();
 
             const fileInput = document.getElementById('pdfFile');
-            const useMock = document.getElementById('useMock').checked;
 
             if (!fileInput.files.length) {
                 alert('請選擇 PDF 檔案');
@@ -363,7 +355,6 @@ UPLOAD_PAGE_HTML = """
             try {
                 const formData = new FormData();
                 formData.append('file', fileInput.files[0]);
-                formData.append('use_mock', useMock ? 'true' : 'false');
 
                 // 台灣申請者資訊
                 const applicantName = document.getElementById('applicantName').value.trim();
@@ -518,7 +509,6 @@ async def health_check():
 @app.post("/generate-report")
 async def generate_report(
     file: UploadFile = File(..., description="CB Report PDF 檔案"),
-    use_mock: str = Form(default="false", description="是否使用模擬資料"),
     applicant_name: str = Form(default="", description="台灣申請者名稱"),
     applicant_address: str = Form(default="", description="台灣申請者地址"),
     cns_report_no: str = Form(default="", description="CNS 報告編號"),
@@ -538,7 +528,6 @@ async def generate_report(
 
     Args:
         file: 上傳的 PDF 檔案
-        use_mock: 是否使用模擬資料（用於測試）
         applicant_name: 台灣申請者名稱（覆蓋 CB 報告中的製造商）
         applicant_address: 台灣申請者地址
         cns_report_no: CNS 報告編號
@@ -551,7 +540,6 @@ async def generate_report(
     logger.info("=" * 50)
     logger.info("收到報告轉換請求")
     logger.info(f"檔案名稱: {file.filename}")
-    logger.info(f"使用模擬: {use_mock}")
     logger.info(f"台灣申請者: {applicant_name or '(未填，使用 CB 報告資訊)'}")
     logger.info(f"申請者地址: {applicant_address or '(未填)'}")
     logger.info(f"CNS 報告編號: {cns_report_no or '(未填)'}")
@@ -586,56 +574,45 @@ async def generate_report(
         logger.error(f"讀取 PDF 失敗: {e}")
         raise HTTPException(status_code=400, detail=f"讀取 PDF 失敗: {str(e)}")
 
-    # 判斷是否使用模擬資料
-    use_mock_data = use_mock.lower() == "true"
-
     try:
         # Step 1: PDF Extract（根據設定選擇 PyMuPDF 或 Adobe）
-        if use_mock_data:
-            logger.info("使用模擬 Extract 結果")
-            extract_json = create_mock_extract_result()
-        else:
-            extractor = settings.pdf_extractor.lower()
-            logger.info(f"使用 PDF 擷取引擎: {extractor}")
+        extractor = settings.pdf_extractor.lower()
+        logger.info(f"使用 PDF 擷取引擎: {extractor}")
 
-            if extractor == "pymupdf":
-                # 使用免費的 PyMuPDF
-                logger.info("呼叫 PyMuPDF 擷取 PDF...")
-                try:
-                    extract_json = await pymupdf_extract_pdf(pdf_bytes)
-                except PyMuPDFExtractError as e:
-                    logger.error(f"PyMuPDF Extract 失敗: {e}")
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"PDF 解析失敗: {str(e)}"
-                    )
-            else:
-                # 使用 Adobe PDF Extract API
-                logger.info("呼叫 Adobe PDF Extract API...")
-                try:
-                    extract_json = await adobe_extract_pdf(pdf_bytes)
-                except AdobeExtractError as e:
-                    logger.error(f"Adobe Extract 失敗: {e}")
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"PDF 解析失敗: {str(e)}"
-                    )
+        if extractor == "pymupdf":
+            # 使用免費的 PyMuPDF
+            logger.info("呼叫 PyMuPDF 擷取 PDF...")
+            try:
+                extract_json = await pymupdf_extract_pdf(pdf_bytes)
+            except PyMuPDFExtractError as e:
+                logger.error(f"PyMuPDF Extract 失敗: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"PDF 解析失敗: {str(e)}"
+                )
+        else:
+            # 使用 Adobe PDF Extract API
+            logger.info("呼叫 Adobe PDF Extract API...")
+            try:
+                extract_json = await adobe_extract_pdf(pdf_bytes)
+            except AdobeExtractError as e:
+                logger.error(f"Adobe Extract 失敗: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"PDF 解析失敗: {str(e)}"
+                )
 
         # Step 2: Azure OpenAI Schema Extraction
         llm_stats = None
-        if use_mock_data:
-            logger.info("使用模擬 Schema")
-            schema = create_mock_schema()
-        else:
-            logger.info("呼叫 Azure OpenAI 萃取 Schema...")
-            try:
-                schema, llm_stats = await extract_report_schema_from_adobe_json(extract_json)
-            except Exception as e:
-                logger.error(f"Schema 萃取失敗: {e}")
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"資料萃取失敗: {str(e)}"
-                )
+        logger.info("呼叫 Azure OpenAI 萃取 Schema...")
+        try:
+            schema, llm_stats = await extract_report_schema_from_adobe_json(extract_json)
+        except Exception as e:
+            logger.error(f"Schema 萃取失敗: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"資料萃取失敗: {str(e)}"
+            )
 
         # 設定來源檔名
         schema.source_filename = file.filename
