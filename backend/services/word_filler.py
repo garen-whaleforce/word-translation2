@@ -35,7 +35,7 @@ from docx.text.run import Run
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from schemas.report_schema import ReportSchema
+from schemas.report_schema import ReportSchema, BasicInfo
 from config import settings
 from utils.logger import get_logger
 
@@ -112,6 +112,17 @@ def build_placeholder_mapping(schema: ReportSchema) -> Dict[str, str]:
     else:
         mapping["rated_output_block"] = bi.ratings_output or ""
     mapping["ratings_power"] = bi.ratings_power or ""
+    # 最大輸出（若未提供，嘗試從 rated_output_lines 推估）
+    mapping["max_output_w"] = bi.max_output_w or ""
+    mapping["max_output_v"] = bi.max_output_v or ""
+    mapping["max_output_a"] = bi.max_output_a or ""
+    if not mapping["max_output_w"]:
+        numbers = []
+        for line in (bi.rated_output_lines or []):
+            match = re.findall(r"([0-9]+(?:\.[0-9]+)?)\s*W", line, flags=re.IGNORECASE)
+            numbers.extend(match)
+        if numbers:
+            mapping["max_output_w"] = str(max(float(n) for n in numbers))
 
     mapping["issue_date"] = bi.issue_date or ""
     mapping["issue_date_short"] = bi.issue_date_short or ""
@@ -134,6 +145,7 @@ def build_placeholder_mapping(schema: ReportSchema) -> Dict[str, str]:
     mapping["national_differences_summary"] = bi.national_differences_summary or ""
     mapping["model_differences_block"] = bi.model_differences or ""
     mapping["cb_report_note"] = bi.cb_report_note or ""
+    mapping["temperature_requirements_text"] = bi.temperature_requirements_text or ""
 
     # ===================
     # Translations (繁中)
@@ -754,6 +766,86 @@ def render_abnormal_fault_table(doc: Document, key_tables: 'KeyTables') -> None:
             cell.text = (cell.text + "\n" + combined).strip() if cell.text else combined
 
 
+def render_temperature_block(doc: Document, schema: 'ReportSchema') -> None:
+    """
+    將溫度/負載條件敘述插入 {{#BLOCK:TEMPERATURE_REQUIREMENTS_TABLE}}。
+    優先使用 schema.basic_info.temperature_requirements_text，其次使用 key_tables.temperature_rise 製作摘要。
+    """
+    placeholder = "{{#BLOCK:TEMPERATURE_REQUIREMENTS_TABLE}}"
+    text = ""
+    if getattr(schema.basic_info, "temperature_requirements_text", None):
+        text = schema.basic_info.temperature_requirements_text
+    elif schema.key_tables and schema.key_tables.temperature_rise:
+        # 簡易摘要：列出量測位置與溫升
+        parts = []
+        for row in schema.key_tables.temperature_rise[:5]:
+            seg = " / ".join(filter(None, [row.location, f"{row.measured_temp}C" if row.measured_temp else None, f"rise {row.temp_rise}K" if row.temp_rise else None]))
+            if seg:
+                parts.append(seg)
+        if parts:
+            text = "Temperature rise summary: " + "; ".join(parts)
+
+    if not text:
+        replace_text_globally(doc, placeholder, "")
+        return
+
+    for paragraph in doc.paragraphs:
+        if placeholder in paragraph.text:
+            paragraph.text = text
+            return
+    for table in doc.tables:
+        for cell in table._cells:
+            for paragraph in cell.paragraphs:
+                if placeholder in paragraph.text:
+                    paragraph.text = text
+                    return
+    replace_text_globally(doc, placeholder, text)
+
+
+def render_max_output_block(doc: Document, basic_info: 'BasicInfo') -> None:
+    """插入最大輸出功率/電壓/電流敘述，替換 {{#BLOCK:MAX_OUTPUT_POWER_BLOCK}}。"""
+    placeholder = "{{#BLOCK:MAX_OUTPUT_POWER_BLOCK}}"
+    max_w = basic_info.max_output_w or ""
+    max_v = basic_info.max_output_v or ""
+    max_a = basic_info.max_output_a or ""
+    text = ""
+    if max_w or max_v or max_a:
+        parts = []
+        if max_w:
+            parts.append(f"{max_w}W")
+        if max_v and max_a:
+            parts.append(f"{max_v}V, {max_a}A")
+        elif max_v:
+            parts.append(f"{max_v}V")
+        elif max_a:
+            parts.append(f"{max_a}A")
+        text = "最大連續輸出功率為 " + " / ".join(parts)
+    if not text and basic_info.rated_output_lines:
+        # 從額定輸出行推估最大功率
+        numbers = []
+        for line in basic_info.rated_output_lines:
+            match = re.findall(r"([0-9]+(?:\\.[0-9]+)?)\\s*W", line, flags=re.IGNORECASE)
+            numbers.extend(match)
+        if numbers:
+            text = f"最大連續輸出功率為 {max(numbers, key=lambda x: float(x))}W"
+
+    if not text:
+        replace_text_globally(doc, placeholder, "")
+        return
+
+    for paragraph in doc.paragraphs:
+        if placeholder in paragraph.text:
+            paragraph.text = text
+            return
+    for table in doc.tables:
+        for cell in table._cells:
+            for paragraph in cell.paragraphs:
+                if placeholder in paragraph.text:
+                    paragraph.text = text
+                    return
+    replace_text_globally(doc, placeholder, text)
+
+
 def render_attachment_block(doc: Document, attachments: Optional[List[str]]) -> None:
     if not attachments:
         return
@@ -953,6 +1045,8 @@ def fill_cns_template(
     render_factory_table_block(doc, schema.factories)
     render_input_test_table(doc, schema.key_tables)
     render_abnormal_fault_table(doc, schema.key_tables)
+    render_temperature_block(doc, schema)
+    render_max_output_block(doc, schema.basic_info)
     render_attachment_block(doc, schema.attachments)
 
     main_model_for_cleanup = placeholder_mapping.get("main_model") or placeholder_mapping.get("model_main") or ""
@@ -1017,12 +1111,27 @@ def fill_cns_template(
             schema.basic_info.cb_report_no,
             schema.basic_info.cns_report_no
         ]))
+        expected_factories = [f.name for f in schema.factories if f.name]
+        expected_max_w = None
+        if schema.basic_info.max_output_w:
+            try:
+                expected_max_w = float(str(schema.basic_info.max_output_w).replace("W","").strip())
+            except Exception:
+                expected_max_w = None
+        if not expected_max_w and placeholder_mapping.get("max_output_w"):
+            try:
+                expected_max_w = float(str(placeholder_mapping.get("max_output_w")))
+            except Exception:
+                expected_max_w = None
         post_render_validate(
             output_path,
             {
                 "ast_report_no": placeholder_mapping.get("header_report_no"),
                 "models": list(expected_models),
-                "report_numbers": list(expected_report_nos)
+                "report_numbers": list(expected_report_nos),
+                "max_output_w": expected_max_w,
+                "test_date_range": (schema.basic_info.test_date_from, schema.basic_info.test_date_to),
+                "factories": expected_factories
             }
         )
     except Exception as e:
@@ -1101,6 +1210,7 @@ def post_render_validate(doc_path: str, expected: Dict[str, Any]) -> None:
     - 禁止舊案型號/報告號
     - 頁首/頁尾報告編號一致
     - 危險 placeholder 殘留
+    - 最大功率/日期/工廠/型號差異
     """
     doc = Document(doc_path)
     text = extract_all_text(doc)
@@ -1152,6 +1262,43 @@ def post_render_validate(doc_path: str, expected: Dict[str, Any]) -> None:
         unexpected_ast = {n for n in ast_numbers if n not in allow_reports}
         if unexpected_ast:
             errors.append(f"Unexpected AST report numbers: {', '.join(sorted(unexpected_ast))}")
+
+    # Report number tokens (CB/AST) 檢核
+    if allow_reports:
+        report_tokens = set(re.findall(r"\b[0-9]{8,}-[0-9]{2}\b", text))
+        unexpected_reports = {n for n in report_tokens if n not in allow_reports}
+        if unexpected_reports:
+            errors.append(f"Unexpected report numbers: {', '.join(sorted(unexpected_reports))}")
+
+    # 最大功率檢核：若提供 expected max_output_w，檢查包含 MAX/最大 文字的 W 數值
+    max_w = expected.get("max_output_w")
+    if max_w:
+        for m in re.finditer(r"([0-9]+(?:\.[0-9]+)?)\s*W", text, flags=re.IGNORECASE):
+            val = float(m.group(1))
+            ctx = text[max(0, m.start()-10):m.end()+10]
+            if any(k in ctx for k in ["max", "MAX", "最大", "連續"]) and abs(val - float(max_w)) > 0.01:
+                errors.append(f"Unexpected max power value: {val}W (expected {max_w}W)")
+
+    # 日期區間檢核
+    date_range = expected.get("test_date_range") or ()
+    if len(date_range) == 2 and all(date_range):
+        start, end = date_range
+        if start in text and end not in text:
+            errors.append("Test date range missing end date")
+
+    # 工廠檢核：名稱需全部出現
+    factories = expected.get("factories") or []
+    for name in factories:
+        if name and name not in text:
+            errors.append(f"Factory missing in output: {name}")
+
+    # 型號差異段落不得為僅命名不同
+    if re.search(r"僅.*命名.*不同|only.*name", text, flags=re.IGNORECASE):
+        errors.append("Model differences text too weak (naming only)")
+
+    # 空白句結構
+    if "為，" in text or "為 , " in text:
+        errors.append("Found dangling sentence with empty value (\"為，\")")
 
     if errors:
         raise ValueError("Post render validation failed: " + "; ".join(errors))

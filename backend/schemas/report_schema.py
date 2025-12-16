@@ -93,6 +93,10 @@ class BasicInfo(BaseModel):
     ratings_output: str = Field(default="", description="輸出額定值，例如 12Vdc, 5A")
     ratings_power: Optional[str] = Field(default=None, description="功率額定值")
     rated_output_lines: Optional[List[str]] = Field(default=None, description="輸出額定值（多行列表，用於區塊填寫）")
+    # 最大輸出（供 sanity 檢核與文案）
+    max_output_v: Optional[str] = Field(default=None, description="最大輸出電壓")
+    max_output_a: Optional[str] = Field(default=None, description="最大輸出電流")
+    max_output_w: Optional[str] = Field(default=None, description="最大輸出功率")
 
     # 報告日期
     issue_date: Optional[str] = Field(default=None, description="報告發行日期")
@@ -121,6 +125,7 @@ class BasicInfo(BaseModel):
     model_differences: Optional[str] = Field(default=None, description="型號差異說明")
     cb_report_note: Optional[str] = Field(default=None, description="CB 報告備註/引用來源")
     attachment_list: Optional[List[str]] = Field(default=None, description="附件清單")
+    temperature_requirements_text: Optional[str] = Field(default=None, description="溫度/負載條件敘述，用於替換舊案33W段落")
 
 
 class TestItemParticulars(BaseModel):
