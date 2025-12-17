@@ -929,9 +929,12 @@ def cleanup_empty_value_sentences(docx_path: str) -> None:
     """
     清理空值造成的斷句問題，例如「...為，」「...為 , 」等。
     直接修改 docx XML 來處理這些不完整的句子結構。
+
+    注意：Word XML 中文字可能被分割到多個 <w:t> 標籤，
+    例如「為」在一個標籤，「，」在另一個標籤，需要用正則處理。
     """
-    # 需要清理的空值斷句模式（在 XML 中可能被 tag 分開，所以用簡單模式）
-    cleanup_patterns = [
+    # 簡單字串替換模式
+    simple_patterns = [
         ("為，", "，"),           # 「...為，」→「...，」
         ("為 , ", " , "),         # 「...為 , 」→「... , 」
         ("為,", ","),             # 「...為,」→「...,」
@@ -940,9 +943,16 @@ def cleanup_empty_value_sentences(docx_path: str) -> None:
         ("為:", ":"),             # 「...為:」→「...:」
         ("為：", "："),           # 「...為：」→「...：」
         ("is ，", "，"),          # 英文殘留
-        ("is ，", "，"),
         ("are ，", "，"),
-        # 處理 </w:t> 標籤中間的情況（XML 內文字可能被分割）
+    ]
+
+    # 正則表達式模式（處理 XML 標籤分割的情況）
+    # 例如：為</w:t></w:r><w:r><w:t>，→ 直接刪除「為」
+    regex_patterns = [
+        # 「為」後面跟著 XML 標籤再跟著標點符號
+        (r'為(</w:t>.*?<w:t[^>]*>)([，,、。:：])', r'\1\2'),
+        # 「為」後面直接跟著標點（在同一個 w:t 內）
+        (r'為([，,、。:：])', r'\1'),
     ]
 
     temp_dir = tempfile.mkdtemp()
@@ -965,10 +975,18 @@ def cleanup_empty_value_sentences(docx_path: str) -> None:
                 xml_text = f.read()
             original = xml_text
 
-            for pattern, replacement in cleanup_patterns:
+            # 先做簡單字串替換
+            for pattern, replacement in simple_patterns:
                 if pattern in xml_text:
                     count = xml_text.count(pattern)
                     xml_text = xml_text.replace(pattern, replacement)
+                    total_cleanups += count
+
+            # 再做正則替換（處理跨標籤的情況）
+            for regex_pattern, replacement in regex_patterns:
+                new_text, count = re.subn(regex_pattern, replacement, xml_text)
+                if count > 0:
+                    xml_text = new_text
                     total_cleanups += count
 
             if xml_text != original:
@@ -986,6 +1004,8 @@ def cleanup_empty_value_sentences(docx_path: str) -> None:
                         arcname = os.path.relpath(path, temp_dir)
                         zipf.write(path, arcname)
             shutil.move(temp_docx, docx_path)
+        else:
+            logger.debug("清理空值斷句: 未發現需要清理的模式")
     except Exception as e:
         logger.warning(f"清理空值斷句失敗: {e}")
     finally:
